@@ -1,0 +1,7 @@
+default:
+  db_type: sqlite
+  database: app/database/sample.db
+  host: null
+  port: null
+  user: null
+  password: null
