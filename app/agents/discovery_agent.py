@@ -114,7 +114,8 @@ def _enrich_with_descriptions(table_infos: list[TableInfo]) -> list[TableInfo]:
 
     try:
         result = call_llm_json(DISCOVERY_SYSTEM_PROMPT, user_prompt)
-        descriptions = {t["table_name"]: t for t in result.get("tables", [])}
+        tables_list = result.get("tables", []) if isinstance(result, dict) else result
+        descriptions = {t["table_name"]: t for t in tables_list}
 
         for table in table_infos:
             if table.name in descriptions:

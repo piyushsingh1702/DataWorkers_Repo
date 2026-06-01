@@ -124,8 +124,8 @@ def _generate_rules_for_table(table, glossary, classification, cde_columns) -> l
     )
 
     try:
-        result = call_llm_json(DQ_RULES_SYSTEM_PROMPT, user_prompt)
-        rules_data = result.get("rules", [])
+        result = call_llm_json(DQ_RULES_SYSTEM_PROMPT, user_prompt, use_complex_model=True)
+        rules_data = result.get("rules", []) if isinstance(result, dict) else result
     except Exception as e:
         logger.warning(f"LLM rule generation failed for {table.name}: {e}")
         rules_data = []

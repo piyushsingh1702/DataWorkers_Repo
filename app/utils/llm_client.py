@@ -1,40 +1,42 @@
-"""LLM client wrapper for OpenAI / Azure OpenAI."""
+"""LLM client wrapper for Compass API (Core42)."""
 
 import json
 import logging
 
-from openai import OpenAI, AzureOpenAI
+from openai import OpenAI
 
 from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
+# Model constants
+MODEL_GPT4 = "gpt-4.1"  # Use for most tasks
+MODEL_GPT5 = "gpt-5.1"  # Use only for complex reasoning steps
+
 
 def get_llm_client():
-    """Get the appropriate OpenAI client based on configuration."""
-    if settings.use_azure:
-        return AzureOpenAI(
-            api_key=settings.azure_openai_api_key,
-            azure_endpoint=settings.azure_openai_endpoint,
-            api_version="2024-08-01-preview",
-        )
-    return OpenAI(api_key=settings.openai_api_key)
+    """Get the Compass API client."""
+    return OpenAI(
+        api_key=settings.compass_api_key,
+        base_url=settings.base_url,
+    )
 
 
-def get_model_name() -> str:
-    """Get the model name to use."""
-    if settings.use_azure:
-        return settings.azure_openai_deployment
-    return "gpt-4o"
-
-
-def call_llm(system_prompt: str, user_prompt: str, temperature: float = 0.2) -> str:
-    """Call the LLM and return the response text."""
+def call_llm(system_prompt: str, user_prompt: str, temperature: float = 0.2, use_complex_model: bool = False) -> str:
+    """Call the LLM and return the response text.
+    
+    Args:
+        system_prompt: System prompt for the LLM.
+        user_prompt: User prompt for the LLM.
+        temperature: Sampling temperature.
+        use_complex_model: If True, uses GPT-5.1 for complex reasoning. Otherwise uses GPT-4.1.
+    """
     client = get_llm_client()
-    model = get_model_name()
+    model = MODEL_GPT5 if use_complex_model else MODEL_GPT4
 
     logger.info(f"Calling LLM ({model}) with {len(user_prompt)} char prompt")
 
+    token_kwarg = {"max_completion_tokens": 4096} if use_complex_model else {"max_tokens": 4096}
     response = client.chat.completions.create(
         model=model,
         messages=[
@@ -42,19 +44,27 @@ def call_llm(system_prompt: str, user_prompt: str, temperature: float = 0.2) -> 
             {"role": "user", "content": user_prompt},
         ],
         temperature=temperature,
-        max_tokens=4096,
+        **token_kwarg,
     )
 
-    return response.choices[0].message.content
+    return response.choices[0].message.content or ""
 
 
-def call_llm_json(system_prompt: str, user_prompt: str, temperature: float = 0.1) -> dict | list:
-    """Call the LLM expecting a JSON response. Parses and returns the JSON."""
+def call_llm_json(system_prompt: str, user_prompt: str, temperature: float = 0.1, use_complex_model: bool = False) -> dict | list:
+    """Call the LLM expecting a JSON response. Parses and returns the JSON.
+    
+    Args:
+        system_prompt: System prompt for the LLM.
+        user_prompt: User prompt for the LLM.
+        temperature: Sampling temperature.
+        use_complex_model: If True, uses GPT-5.1 for complex reasoning. Otherwise uses GPT-4.1.
+    """
     client = get_llm_client()
-    model = get_model_name()
+    model = MODEL_GPT5 if use_complex_model else MODEL_GPT4
 
     logger.info(f"Calling LLM JSON ({model}) with {len(user_prompt)} char prompt")
 
+    token_kwarg = {"max_completion_tokens": 4096} if use_complex_model else {"max_tokens": 4096}
     response = client.chat.completions.create(
         model=model,
         messages=[
@@ -62,9 +72,9 @@ def call_llm_json(system_prompt: str, user_prompt: str, temperature: float = 0.1
             {"role": "user", "content": user_prompt},
         ],
         temperature=temperature,
-        max_tokens=4096,
         response_format={"type": "json_object"},
+        **token_kwarg,
     )
 
-    content = response.choices[0].message.content
+    content = response.choices[0].message.content or ""
     return json.loads(content)

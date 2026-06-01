@@ -133,7 +133,8 @@ def _process_table_batch(table_name: str, profiles: list[ColumnProfile]) -> list
 
     try:
         result = call_llm_json(PROFILING_SYSTEM_PROMPT, user_prompt)
-        llm_entries = {e["column_name"]: e for e in result.get("entries", [])}
+        entries_list = result.get("entries", []) if isinstance(result, dict) else result
+        llm_entries = {e["column_name"]: e for e in entries_list}
     except Exception as e:
         logger.warning(f"LLM glossary generation failed for {table_name}: {e}")
         llm_entries = {}

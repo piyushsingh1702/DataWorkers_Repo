@@ -5,11 +5,9 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    # OpenAI
-    openai_api_key: str = ""
-    azure_openai_api_key: str = ""
-    azure_openai_endpoint: str = ""
-    azure_openai_deployment: str = "gpt-4"
+    # Compass API
+    compass_api_key: str = ""
+    base_url: str = "https://api.core42.ai/v1"
 
     # Paths
     database_path: str = "app/database/sample.db"
@@ -21,10 +19,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
-
-    @property
-    def use_azure(self) -> bool:
-        return bool(self.azure_openai_api_key and self.azure_openai_endpoint)
+        extra = "ignore"
 
     @property
     def db_path(self) -> Path:

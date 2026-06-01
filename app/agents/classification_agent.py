@@ -85,7 +85,8 @@ def _classify_table(table_name: str, entries) -> list[ColumnClassification]:
 
     try:
         result = call_llm_json(CLASSIFICATION_SYSTEM_PROMPT, user_prompt)
-        llm_classifications = {c["column_name"]: c for c in result.get("classifications", [])}
+        classifications_list = result.get("classifications", []) if isinstance(result, dict) else result
+        llm_classifications = {c["column_name"]: c for c in classifications_list}
     except Exception as e:
         logger.warning(f"LLM classification failed for {table_name}: {e}")
         llm_classifications = {}
