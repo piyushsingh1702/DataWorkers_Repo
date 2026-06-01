@@ -36,16 +36,26 @@ def call_llm(system_prompt: str, user_prompt: str, temperature: float = 0.2, use
 
     logger.info(f"Calling LLM ({model}) with {len(user_prompt)} char prompt")
 
-    token_kwarg = {"max_completion_tokens": 4096} if use_complex_model else {"max_tokens": 4096}
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=temperature,
-        **token_kwarg,
-    )
+    if use_complex_model:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=temperature,
+            max_completion_tokens=4096,
+        )
+    else:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=temperature,
+            max_tokens=4096,
+        )
 
     return response.choices[0].message.content or ""
 
@@ -64,17 +74,28 @@ def call_llm_json(system_prompt: str, user_prompt: str, temperature: float = 0.1
 
     logger.info(f"Calling LLM JSON ({model}) with {len(user_prompt)} char prompt")
 
-    token_kwarg = {"max_completion_tokens": 4096} if use_complex_model else {"max_tokens": 4096}
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=temperature,
-        response_format={"type": "json_object"},
-        **token_kwarg,
-    )
+    if use_complex_model:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=temperature,
+            response_format={"type": "json_object"},
+            max_completion_tokens=4096,
+        )
+    else:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=temperature,
+            response_format={"type": "json_object"},
+            max_tokens=4096,
+        )
 
     content = response.choices[0].message.content or ""
     return json.loads(content)
