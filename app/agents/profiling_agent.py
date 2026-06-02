@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 
 from app.config.settings import settings
 from app.models.glossary import ColumnProfile, DataGlossary, GlossaryEntry
+from app.utils.db_registry import resolve_db_path, save_artifact
 from app.utils.db_utils import (
     get_connection, get_all_tables, get_table_info,
     get_column_stats, get_numeric_stats, get_string_stats,
@@ -19,12 +20,12 @@ logger = logging.getLogger(__name__)
 NUMERIC_TYPES = {"INTEGER", "REAL", "NUMERIC", "FLOAT", "DOUBLE", "DECIMAL"}
 
 
-def run_profiling(db_path: str | None = None) -> DataGlossary:
+def run_profiling(db_name: str | None = None) -> DataGlossary:
     """
     Profile all columns and generate a data glossary with AI-enriched descriptions.
     """
-    path = db_path or settings.database_path
-    logger.info(f"Running data profiling on: {path}")
+    path = resolve_db_path(db_name)
+    logger.info(f"Running data profiling on '{db_name or 'default'}' at: {path}")
 
     conn = get_connection(path)
     try:
@@ -78,16 +79,15 @@ def run_profiling(db_path: str | None = None) -> DataGlossary:
         entries = _generate_glossary_entries(all_profiles)
 
         glossary = DataGlossary(
-            database_name=path,
+            database_name=db_name or path,
             entries=entries,
             total_entries=len(entries),
             generated_at=datetime.now(timezone.utc).isoformat(),
         )
 
-        # Save output
-        output_path = settings.outputs_path / "data_glossary.json"
-        output_path.write_text(glossary.model_dump_json(indent=2))
-        logger.info(f"Data glossary saved to {output_path}")
+        # Persist to dq_admin (overwrites previous run for this db_name)
+        save_artifact(db_name, "data_glossary", glossary.model_dump_json())
+        logger.info(f"Data glossary persisted to dq_admin for db '{db_name or 'default'}'")
 
         return glossary
     finally:

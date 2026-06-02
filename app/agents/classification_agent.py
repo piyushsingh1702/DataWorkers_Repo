@@ -6,23 +6,29 @@ from datetime import datetime, timezone
 from app.config.settings import settings
 from app.models.classification import ClassificationReport, ColumnClassification
 from app.models.glossary import DataGlossary
+from app.utils.db_registry import load_artifact, save_artifact
 from app.utils.llm_client import call_llm_json
 from app.utils.prompts import CLASSIFICATION_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
 
-def run_classification(glossary: DataGlossary | None = None) -> ClassificationReport:
+def run_classification(
+    glossary: DataGlossary | None = None,
+    db_name: str | None = None,
+) -> ClassificationReport:
     """
     Classify columns by sensitivity and identify Critical Data Elements.
     Uses data glossary as input context for better classification.
     """
-    # Load glossary from file if not provided
+    # Load glossary from dq_admin if not provided
     if glossary is None:
-        glossary_path = settings.outputs_path / "data_glossary.json"
-        if not glossary_path.exists():
-            raise FileNotFoundError("Data glossary not found. Run profiling first.")
-        glossary = DataGlossary.model_validate_json(glossary_path.read_text())
+        payload = load_artifact(db_name, "data_glossary")
+        if not payload:
+            raise FileNotFoundError(
+                f"Data glossary not found for db '{db_name or 'default'}'. Run profiling first."
+            )
+        glossary = DataGlossary.model_validate_json(payload)
 
     logger.info(f"Running classification on {glossary.total_entries} columns")
 
@@ -53,10 +59,9 @@ def run_classification(glossary: DataGlossary | None = None) -> ClassificationRe
         generated_at=datetime.now(timezone.utc).isoformat(),
     )
 
-    # Save output
-    output_path = settings.outputs_path / "classification_report.json"
-    output_path.write_text(report.model_dump_json(indent=2))
-    logger.info(f"Classification report saved to {output_path}")
+    # Persist to dq_admin (overwrites previous run for this db_name)
+    save_artifact(db_name, "classification_report", report.model_dump_json())
+    logger.info(f"Classification report persisted to dq_admin for db '{db_name or 'default'}'")
 
     return report
 

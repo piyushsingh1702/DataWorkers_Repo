@@ -8,6 +8,7 @@ from app.models.catalogue import TechnicalCatalogue
 from app.models.classification import ClassificationReport
 from app.models.dq_rules import DQRule, DQRuleSet
 from app.models.glossary import DataGlossary
+from app.utils.db_registry import load_artifact, save_artifact
 from app.utils.llm_client import call_llm_json
 from app.utils.prompts import DQ_RULES_SYSTEM_PROMPT
 
@@ -18,29 +19,36 @@ def run_dq_rules_generation(
     catalogue: TechnicalCatalogue | None = None,
     glossary: DataGlossary | None = None,
     classification: ClassificationReport | None = None,
+    db_name: str | None = None,
 ) -> DQRuleSet:
     """
     Generate data quality rules based on catalogue, glossary, and classification.
     All rules are AI-generated and mapped to DQ dimensions.
     """
-    # Load from files if not provided
+    # Load from dq_admin if not provided
     if catalogue is None:
-        cat_path = settings.outputs_path / "technical_catalogue.json"
-        if not cat_path.exists():
-            raise FileNotFoundError("Technical catalogue not found. Run discovery first.")
-        catalogue = TechnicalCatalogue.model_validate_json(cat_path.read_text())
+        payload = load_artifact(db_name, "technical_catalogue")
+        if not payload:
+            raise FileNotFoundError(
+                f"Technical catalogue not found for db '{db_name or 'default'}'. Run discovery first."
+            )
+        catalogue = TechnicalCatalogue.model_validate_json(payload)
 
     if glossary is None:
-        glos_path = settings.outputs_path / "data_glossary.json"
-        if not glos_path.exists():
-            raise FileNotFoundError("Data glossary not found. Run profiling first.")
-        glossary = DataGlossary.model_validate_json(glos_path.read_text())
+        payload = load_artifact(db_name, "data_glossary")
+        if not payload:
+            raise FileNotFoundError(
+                f"Data glossary not found for db '{db_name or 'default'}'. Run profiling first."
+            )
+        glossary = DataGlossary.model_validate_json(payload)
 
     if classification is None:
-        class_path = settings.outputs_path / "classification_report.json"
-        if not class_path.exists():
-            raise FileNotFoundError("Classification report not found. Run classification first.")
-        classification = ClassificationReport.model_validate_json(class_path.read_text())
+        payload = load_artifact(db_name, "classification_report")
+        if not payload:
+            raise FileNotFoundError(
+                f"Classification report not found for db '{db_name or 'default'}'. Run classification first."
+            )
+        classification = ClassificationReport.model_validate_json(payload)
 
     logger.info("Generating DQ rules using AI agent")
 
@@ -72,10 +80,9 @@ def run_dq_rules_generation(
         generated_at=datetime.now(timezone.utc).isoformat(),
     )
 
-    # Save output
-    output_path = settings.outputs_path / "dq_rules.json"
-    output_path.write_text(rule_set.model_dump_json(indent=2))
-    logger.info(f"DQ rules saved to {output_path} ({len(all_rules)} rules)")
+    # Persist to dq_admin (overwrites previous run for this db_name)
+    save_artifact(db_name, "dq_rules", rule_set.model_dump_json())
+    logger.info(f"DQ rules persisted to dq_admin ({len(all_rules)} rules) for db '{db_name or 'default'}'")
 
     return rule_set
 

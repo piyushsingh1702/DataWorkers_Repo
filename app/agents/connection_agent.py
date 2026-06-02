@@ -2,24 +2,25 @@
 
 import logging
 
-from app.config.settings import settings
+from app.utils.db_registry import resolve_db_path
 from app.utils.db_utils import test_connection
 
 logger = logging.getLogger(__name__)
 
 
-def run_connection_test(db_path: str | None = None) -> dict:
+def run_connection_test(db_name: str | None = None) -> dict:
     """
-    Test database connectivity.
-    
+    Test database connectivity for a registered database.
+
     Args:
-        db_path: Optional override for database path. Uses settings default if not provided.
-    
+        db_name: Registered database name. Falls back to the default if omitted.
+
     Returns:
         Dict with status, message, and metadata.
     """
-    path = db_path or settings.database_path
-    logger.info(f"Testing connection to: {path}")
+    path = resolve_db_path(db_name)
+    logger.info(f"Testing connection to '{db_name or 'default'}' at: {path}")
     result = test_connection(path)
+    result["db_name"] = db_name
     logger.info(f"Connection test result: {result['status']}")
     return result

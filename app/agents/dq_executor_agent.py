@@ -8,6 +8,12 @@ from app.models.dq_rules import (
     DimensionScore, DQRuleSet, DQScoreReport,
     RuleResult, TableScore,
 )
+from app.utils.db_registry import (
+    load_artifact,
+    resolve_db_path,
+    save_artifact,
+    save_dq_report_markdown,
+)
 from app.utils.db_utils import execute_dq_query, get_connection, get_row_count
 from app.utils.llm_client import call_llm
 from app.utils.prompts import DQ_INSIGHTS_SYSTEM_PROMPT
@@ -17,19 +23,24 @@ logger = logging.getLogger(__name__)
 DIMENSIONS = ["Accuracy", "Completeness", "Consistency", "Timeliness", "Validity", "Uniqueness"]
 
 
-def run_dq_execution(rule_set: DQRuleSet | None = None, db_path: str | None = None) -> DQScoreReport:
+def run_dq_execution(
+    rule_set: DQRuleSet | None = None,
+    db_name: str | None = None,
+) -> DQScoreReport:
     """
     Execute all DQ rules and produce consolidated scores.
     """
-    # Load rules from file if not provided
+    # Load rules from dq_admin if not provided
     if rule_set is None:
-        rules_path = settings.outputs_path / "dq_rules.json"
-        if not rules_path.exists():
-            raise FileNotFoundError("DQ rules not found. Run rule generation first.")
-        rule_set = DQRuleSet.model_validate_json(rules_path.read_text())
+        payload = load_artifact(db_name, "dq_rules")
+        if not payload:
+            raise FileNotFoundError(
+                f"DQ rules not found for db '{db_name or 'default'}'. Run rule generation first."
+            )
+        rule_set = DQRuleSet.model_validate_json(payload)
 
-    path = db_path or settings.database_path
-    logger.info(f"Executing {rule_set.total_rules} DQ rules against {path}")
+    path = resolve_db_path(db_name)
+    logger.info(f"Executing {rule_set.total_rules} DQ rules against '{db_name or 'default'}' ({path})")
 
     conn = get_connection(path)
     try:
@@ -47,7 +58,7 @@ def run_dq_execution(rule_set: DQRuleSet | None = None, db_path: str | None = No
         rules_failed = len(rule_results) - rules_passed
 
         report = DQScoreReport(
-            database_name=path,
+            database_name=db_name or path,
             overall_score=overall_score,
             table_scores=table_scores,
             dimension_scores=dimension_scores,
@@ -58,13 +69,12 @@ def run_dq_execution(rule_set: DQRuleSet | None = None, db_path: str | None = No
             generated_at=datetime.now(timezone.utc).isoformat(),
         )
 
-        # Save JSON output
-        output_path = settings.outputs_path / "dq_scores.json"
-        output_path.write_text(report.model_dump_json(indent=2))
-        logger.info(f"DQ scores saved to {output_path}")
+        # Persist scores to dq_admin (overwrites previous run for this db_name)
+        save_artifact(db_name, "dq_scores", report.model_dump_json())
+        logger.info(f"DQ scores persisted to dq_admin for db '{db_name or 'default'}'")
 
         # Generate markdown report with AI insights
-        _generate_markdown_report(report)
+        _generate_markdown_report(report, db_name)
 
         return report
     finally:
@@ -180,7 +190,7 @@ def _calculate_overall_score(dimension_scores: list[DimensionScore]) -> float:
     return round(sum(d.score for d in active_dims) / len(active_dims), 2)
 
 
-def _generate_markdown_report(report: DQScoreReport):
+def _generate_markdown_report(report: DQScoreReport, db_name: str | None):
     """Generate a markdown report with AI-driven insights."""
     # Build summary for AI
     summary_lines = [
@@ -256,7 +266,6 @@ def _generate_markdown_report(report: DQScoreReport):
                 f"- **Failed Records:** {r.failed_records}/{r.total_records}\n\n"
             )
 
-    # Save markdown report
-    output_path = settings.outputs_path / "dq_report.md"
-    output_path.write_text(md)
-    logger.info(f"DQ report saved to {output_path}")
+    # Persist markdown report to dq_admin (overwrites previous run)
+    save_dq_report_markdown(db_name, md)
+    logger.info(f"DQ report persisted to dq_admin for db '{db_name or 'default'}'")

@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from app.config.settings import settings
 from app.models.catalogue import ColumnInfo, ForeignKey, TableInfo, TechnicalCatalogue
+from app.utils.db_registry import resolve_db_path, save_artifact
 from app.utils.db_utils import (
     get_connection, get_all_tables, get_table_info,
     get_foreign_keys, get_indexes, get_row_count,
@@ -16,13 +17,13 @@ from app.utils.prompts import DISCOVERY_SYSTEM_PROMPT
 logger = logging.getLogger(__name__)
 
 
-def run_discovery(db_path: str | None = None) -> TechnicalCatalogue:
+def run_discovery(db_name: str | None = None) -> TechnicalCatalogue:
     """
     Discover database metadata and build a technical catalogue.
     Uses AI to generate descriptions for tables and columns.
     """
-    path = db_path or settings.database_path
-    logger.info(f"Running discovery on: {path}")
+    path = resolve_db_path(db_name)
+    logger.info(f"Running discovery on '{db_name or 'default'}' at: {path}")
 
     conn = get_connection(path)
     try:
@@ -79,17 +80,16 @@ def run_discovery(db_path: str | None = None) -> TechnicalCatalogue:
         table_infos = _enrich_with_descriptions(table_infos)
 
         catalogue = TechnicalCatalogue(
-            database_name=path,
+            database_name=db_name or path,
             tables=table_infos,
             total_tables=len(table_infos),
             total_columns=total_columns,
             generated_at=datetime.now(timezone.utc).isoformat(),
         )
 
-        # Save output
-        output_path = settings.outputs_path / "technical_catalogue.json"
-        output_path.write_text(catalogue.model_dump_json(indent=2))
-        logger.info(f"Technical catalogue saved to {output_path}")
+        # Persist to dq_admin (overwrites previous run for this db_name)
+        save_artifact(db_name, "technical_catalogue", catalogue.model_dump_json())
+        logger.info(f"Technical catalogue persisted to dq_admin for db '{db_name or 'default'}'")
 
         return catalogue
     finally:

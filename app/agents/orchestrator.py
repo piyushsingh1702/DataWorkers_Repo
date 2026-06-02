@@ -48,9 +48,21 @@ class PipelineState:
 pipeline_state = PipelineState()
 
 
-def run_full_pipeline(db_path: str | None = None) -> dict:
+def run_full_pipeline(
+    db_name: str | None = None,
+    description: str | None = None,
+    properties: dict | None = None,
+) -> dict:
     """
-    Run the full data quality pipeline end-to-end.
+    Run the full data quality pipeline end-to-end against a named database.
+
+    Args:
+        db_name: Unique name for the sample database. The DB is created (or
+            recreated) under settings.database_dir as ``<db_name>.db`` and
+            registered in the central dq_admin registry.
+        description: Optional description stored in the dq_admin registry.
+        properties: Optional metadata stored in the dq_admin registry.
+
     Returns summary of results.
     """
     global pipeline_state
@@ -61,14 +73,18 @@ def run_full_pipeline(db_path: str | None = None) -> dict:
     try:
         # Step 1: Setup database
         pipeline_state.current_step = "database_setup"
-        logger.info("Pipeline Step 1: Setting up sample database")
-        create_sample_database()
+        logger.info(f"Pipeline Step 1: Setting up sample database '{db_name or 'default'}'")
+        create_sample_database(
+            db_name=db_name,
+            description=description,
+            properties=properties,
+        )
         pipeline_state.steps_completed.append("database_setup")
 
         # Step 2: Connection test
         pipeline_state.current_step = "connection_test"
         logger.info("Pipeline Step 2: Testing connection")
-        conn_result = run_connection_test(db_path)
+        conn_result = run_connection_test(db_name)
         if conn_result["status"] != "success":
             raise RuntimeError(f"Connection failed: {conn_result['message']}")
         pipeline_state.steps_completed.append("connection_test")
@@ -76,31 +92,31 @@ def run_full_pipeline(db_path: str | None = None) -> dict:
         # Step 3: Discovery
         pipeline_state.current_step = "discovery"
         logger.info("Pipeline Step 3: Running discovery")
-        catalogue = run_discovery(db_path)
+        catalogue = run_discovery(db_name)
         pipeline_state.steps_completed.append("discovery")
 
         # Step 4: Profiling
         pipeline_state.current_step = "profiling"
         logger.info("Pipeline Step 4: Running profiling")
-        glossary = run_profiling(db_path)
+        glossary = run_profiling(db_name)
         pipeline_state.steps_completed.append("profiling")
 
         # Step 5: Classification
         pipeline_state.current_step = "classification"
         logger.info("Pipeline Step 5: Running classification")
-        classification = run_classification(glossary)
+        classification = run_classification(glossary, db_name=db_name)
         pipeline_state.steps_completed.append("classification")
 
         # Step 6: DQ Rules Generation
         pipeline_state.current_step = "dq_rules_generation"
         logger.info("Pipeline Step 6: Generating DQ rules")
-        rule_set = run_dq_rules_generation(catalogue, glossary, classification)
+        rule_set = run_dq_rules_generation(catalogue, glossary, classification, db_name=db_name)
         pipeline_state.steps_completed.append("dq_rules_generation")
 
         # Step 7: DQ Execution
         pipeline_state.current_step = "dq_execution"
         logger.info("Pipeline Step 7: Executing DQ rules")
-        score_report = run_dq_execution(rule_set, db_path)
+        score_report = run_dq_execution(rule_set, db_name=db_name)
         pipeline_state.steps_completed.append("dq_execution")
 
         pipeline_state.status = PipelineStatus.COMPLETED
@@ -109,6 +125,7 @@ def run_full_pipeline(db_path: str | None = None) -> dict:
 
         return {
             "status": "completed",
+            "db_name": db_name,
             "overall_dq_score": score_report.overall_score,
             "total_rules": score_report.total_rules,
             "rules_passed": score_report.rules_passed,

@@ -4,11 +4,29 @@ Includes realistic data with intentional quality issues for DQ testing.
 """
 
 import random
+import re
 import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from app.config.settings import settings
+from app.utils.db_registry import register_database
+
+_DB_NAME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9_\-]{0,62}$")
+
+
+def _validate_db_name(db_name: str) -> str:
+    if not isinstance(db_name, str) or not _DB_NAME_PATTERN.match(db_name):
+        raise ValueError(
+            f"Invalid db_name '{db_name}': must start with a letter and contain only "
+            "letters, digits, underscores, or hyphens (max 63 chars)."
+        )
+    return db_name
+
+
+def _resolve_db_path(db_name: str) -> Path:
+    return Path(settings.database_dir) / f"{db_name}.db"
 
 SCHEMA_SQL = """
 -- Categories
@@ -442,16 +460,38 @@ def _insert_reviews(conn):
     )
 
 
-def create_sample_database() -> str:
-    """Create the sample SQLite database. Returns the database path."""
+def create_sample_database(
+    db_name: str | None = None,
+    description: str | None = None,
+    properties: dict[str, Any] | None = None,
+    overwrite: bool = True,
+) -> str:
+    """Create a sample SQLite database under settings.database_dir.
+
+    Args:
+        db_name: Unique database name (file will be ``<db_name>.db``). Defaults to
+            ``settings.default_db_name``. Must match ``^[A-Za-z][A-Za-z0-9_\\-]{0,62}$``.
+        description: Optional human-readable description stored in ``dq_admin_databases``.
+        properties: Optional dict of extra metadata (serialized as JSON).
+        overwrite: If True, an existing DB file at the target path is removed first.
+
+    Returns:
+        The absolute path to the created database file.
+    """
     random.seed(42)  # Reproducible data
 
-    db_path = Path(settings.database_path)
+    name = _validate_db_name(db_name or settings.default_db_name)
+    db_path = _resolve_db_path(name)
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Remove existing DB to start fresh
     if db_path.exists():
-        db_path.unlink()
+        if overwrite:
+            db_path.unlink()
+        else:
+            raise FileExistsError(
+                f"Database '{name}' already exists at {db_path}. "
+                "Pass overwrite=True to replace it."
+            )
 
     conn = sqlite3.connect(str(db_path))
     conn.execute("PRAGMA foreign_keys = ON")
@@ -471,5 +511,13 @@ def create_sample_database() -> str:
         conn.commit()
     finally:
         conn.close()
+
+    # Register in the central dq_admin registry (separate admin DB).
+    register_database(
+        db_name=name,
+        db_path=str(db_path),
+        description=description,
+        properties=properties,
+    )
 
     return str(db_path)
