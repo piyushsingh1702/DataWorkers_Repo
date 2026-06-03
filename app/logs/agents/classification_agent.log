@@ -1,0 +1,5 @@
+2026-06-03 11:58:08,327 [INFO] app.agents.classification_agent: hello from classification_agent
+2026-06-03 12:35:14,430 [INFO] app.agents.classification_agent: Running classification on 110 columns
+2026-06-03 12:36:10,215 [INFO] app.agents.classification_agent: Classification report persisted for db 'loan1' snapshot '2025-01-01'
+2026-06-03 13:22:46,926 [INFO] app.agents.classification_agent: Running classification on 110 columns
+2026-06-03 13:23:45,612 [INFO] app.agents.classification_agent: Classification report persisted for db 'loan1' snapshot '2025-02-01'

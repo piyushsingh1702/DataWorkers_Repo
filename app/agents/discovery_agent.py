@@ -17,13 +17,15 @@ from app.utils.prompts import DISCOVERY_SYSTEM_PROMPT
 logger = logging.getLogger(__name__)
 
 
-def run_discovery(db_name: str | None = None) -> TechnicalCatalogue:
-    """
-    Discover database metadata and build a technical catalogue.
-    Uses AI to generate descriptions for tables and columns.
+def run_discovery(db_name: str | None = None, snapshot_date: str | None = None) -> TechnicalCatalogue:
+    """Discover database metadata and build a technical catalogue for one snapshot.
+
+    Schema-level metadata (column types, FKs, indexes) is shared across
+    snapshots, but row counts are filtered to ``snapshot_date`` so the
+    catalogue reflects the size of that point-in-time view.
     """
     path = resolve_db_path(db_name)
-    logger.info(f"Running discovery on '{db_name or 'default'}' at: {path}")
+    logger.info(f"Running discovery on '{db_name or 'default'}' at: {path} (snapshot={snapshot_date})")
 
     conn = get_connection(path)
     try:
@@ -35,7 +37,7 @@ def run_discovery(db_name: str | None = None) -> TechnicalCatalogue:
             columns_raw = get_table_info(conn, table_name)
             fks_raw = get_foreign_keys(conn, table_name)
             indexes = get_indexes(conn, table_name)
-            row_count = get_row_count(conn, table_name)
+            row_count = get_row_count(conn, table_name, snapshot_date=snapshot_date)
 
             # Determine unique columns from indexes
             unique_columns = set()
@@ -87,9 +89,9 @@ def run_discovery(db_name: str | None = None) -> TechnicalCatalogue:
             generated_at=datetime.now(timezone.utc).isoformat(),
         )
 
-        # Persist to dq_admin (overwrites previous run for this db_name)
-        save_artifact(db_name, "technical_catalogue", catalogue.model_dump_json())
-        logger.info(f"Technical catalogue persisted to dq_admin for db '{db_name or 'default'}'")
+        # Persist per (db_name, snapshot_date); overwrites previous run for that pair.
+        save_artifact(db_name, snapshot_date, "technical_catalogue", catalogue.model_dump_json())
+        logger.info(f"Technical catalogue persisted for db '{db_name or 'default'}' snapshot '{snapshot_date}'")
 
         return catalogue
     finally:

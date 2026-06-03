@@ -16,17 +16,15 @@ logger = logging.getLogger(__name__)
 def run_classification(
     glossary: DataGlossary | None = None,
     db_name: str | None = None,
+    snapshot_date: str | None = None,
 ) -> ClassificationReport:
-    """
-    Classify columns by sensitivity and identify Critical Data Elements.
-    Uses data glossary as input context for better classification.
-    """
-    # Load glossary from dq_admin if not provided
+    """Classify columns by sensitivity and identify CDEs for one snapshot."""
     if glossary is None:
-        payload = load_artifact(db_name, "data_glossary")
+        payload = load_artifact(db_name, snapshot_date, "data_glossary")
         if not payload:
             raise FileNotFoundError(
-                f"Data glossary not found for db '{db_name or 'default'}'. Run profiling first."
+                f"Data glossary not found for db '{db_name or 'default'}' snapshot '{snapshot_date}'. "
+                "Run profiling first."
             )
         glossary = DataGlossary.model_validate_json(payload)
 
@@ -59,9 +57,8 @@ def run_classification(
         generated_at=datetime.now(timezone.utc).isoformat(),
     )
 
-    # Persist to dq_admin (overwrites previous run for this db_name)
-    save_artifact(db_name, "classification_report", report.model_dump_json())
-    logger.info(f"Classification report persisted to dq_admin for db '{db_name or 'default'}'")
+    save_artifact(db_name, snapshot_date, "classification_report", report.model_dump_json())
+    logger.info(f"Classification report persisted for db '{db_name or 'default'}' snapshot '{snapshot_date}'")
 
     return report
 

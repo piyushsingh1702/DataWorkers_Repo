@@ -1,7 +1,9 @@
 __pycache__/
 *.py[cod]
 *.db
-.env
+# Local-only secrets (real API keys, etc.). Never commit.
+.env.local
+.env.*.local
 app/outputs/*.json
 app/outputs/*.md
 .venv/

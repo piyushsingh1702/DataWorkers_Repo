@@ -44,13 +44,17 @@ class ClassificationOverrideRequest(DBNameRequest):
 
 
 @router.post("/run")
-def run_classification_agent(db_name: str | None = Query(default=None)):
-    """Run the classification agent to classify data and identify CDEs."""
+def run_classification_agent(
+    db_name: str | None = Query(default=None),
+    snapshot_date: str = Query(..., description="Snapshot date (YYYY-MM-DD)."),
+):
+    """Run the classification agent to classify data and identify CDEs for one snapshot."""
     try:
-        report = run_classification(db_name=db_name)
+        report = run_classification(db_name=db_name, snapshot_date=snapshot_date)
         return {
             "status": "success",
             "db_name": db_name,
+            "snapshot_date": snapshot_date,
             "message": f"Classified {report.total_columns} columns, identified {report.cde_count} CDEs",
             "summary": {
                 "total_columns": report.total_columns,
@@ -61,14 +65,22 @@ def run_classification_agent(db_name: str | None = Query(default=None)):
         }
     except (FileNotFoundError, LookupError) as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/results")
-def get_classification_results(db_name: str | None = Query(default=None)):
-    """Get the classification report results for a database."""
-    payload = load_artifact(db_name, "classification_report")
+def get_classification_results(
+    db_name: str | None = Query(default=None),
+    snapshot_date: str = Query(..., description="Snapshot date (YYYY-MM-DD)."),
+):
+    """Get the classification report results for a (db_name, snapshot_date)."""
+    try:
+        payload = load_artifact(db_name, snapshot_date, "classification_report")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if not payload:
         raise HTTPException(status_code=404, detail="Classification report not found. Run classification first.")
     return json.loads(payload)
@@ -79,14 +91,11 @@ _ALLOWED_CLASSIFICATIONS = {"Public", "Internal", "Confidential", "Restricted"}
 
 @router.post("/override")
 def override_classification_results(request: ClassificationOverrideRequest):
-    """Manually overwrite LLM-generated classification, CDE flag, and reasonings.
-
-    If ``column_name`` is supplied, only that classification entry is updated.
-    Otherwise the override is applied to every entry belonging to
-    ``table_name``. Classification summary counters are recomputed after the
-    edit so aggregate stats stay consistent.
-    """
-    payload = load_artifact(request.db_name, "classification_report")
+    """Manually overwrite LLM-generated classification output for a table or column in one snapshot."""
+    try:
+        payload = load_artifact(request.db_name, request.snapshot_date, "classification_report")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if not payload:
         raise HTTPException(status_code=404, detail="Classification report not found. Run classification first.")
 
@@ -137,11 +146,12 @@ def override_classification_results(request: ClassificationOverrideRequest):
         else 0.0
     )
 
-    save_artifact(request.db_name, "classification_report", report.model_dump_json())
+    save_artifact(request.db_name, request.snapshot_date, "classification_report", report.model_dump_json())
 
     return {
         "status": "success",
         "db_name": request.db_name,
+        "snapshot_date": request.snapshot_date,
         "message": f"Overrode classification output for {len(targets)} entr{'y' if len(targets) == 1 else 'ies'}",
         "updated_entries": [
             {"table": c.table_name, "column": c.column_name} for c in targets

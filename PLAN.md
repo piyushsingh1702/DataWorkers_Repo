@@ -1,4 +1,4 @@
-# Autonomous Metadata & Data Insights Research Assistant
+# Autonomous Data Governance Assistant
 
 ## Architecture Overview
 

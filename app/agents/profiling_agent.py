@@ -20,12 +20,10 @@ logger = logging.getLogger(__name__)
 NUMERIC_TYPES = {"INTEGER", "REAL", "NUMERIC", "FLOAT", "DOUBLE", "DECIMAL"}
 
 
-def run_profiling(db_name: str | None = None) -> DataGlossary:
-    """
-    Profile all columns and generate a data glossary with AI-enriched descriptions.
-    """
+def run_profiling(db_name: str | None = None, snapshot_date: str | None = None) -> DataGlossary:
+    """Profile all columns for one snapshot and generate an AI-enriched glossary."""
     path = resolve_db_path(db_name)
-    logger.info(f"Running data profiling on '{db_name or 'default'}' at: {path}")
+    logger.info(f"Running data profiling on '{db_name or 'default'}' at: {path} (snapshot={snapshot_date})")
 
     conn = get_connection(path)
     try:
@@ -34,16 +32,16 @@ def run_profiling(db_name: str | None = None) -> DataGlossary:
 
         for table_name in tables:
             columns = get_table_info(conn, table_name)
-            row_count = get_row_count(conn, table_name)
+            row_count = get_row_count(conn, table_name, snapshot_date=snapshot_date)
 
             for col in columns:
                 col_name = col["name"]
                 col_type = (col["type"] or "TEXT").upper()
 
-                # Basic stats
-                stats = get_column_stats(conn, table_name, col_name)
-                sample_vals = get_sample_values(conn, table_name, col_name, limit=20)
-                top_vals = get_top_values(conn, table_name, col_name, limit=10)
+                # Basic stats (snapshot-scoped)
+                stats = get_column_stats(conn, table_name, col_name, snapshot_date=snapshot_date)
+                sample_vals = get_sample_values(conn, table_name, col_name, limit=20, snapshot_date=snapshot_date)
+                top_vals = get_top_values(conn, table_name, col_name, limit=10, snapshot_date=snapshot_date)
 
                 profile = ColumnProfile(
                     table_name=table_name,
@@ -59,7 +57,7 @@ def run_profiling(db_name: str | None = None) -> DataGlossary:
 
                 # Numeric stats
                 if any(nt in col_type for nt in NUMERIC_TYPES):
-                    num_stats = get_numeric_stats(conn, table_name, col_name)
+                    num_stats = get_numeric_stats(conn, table_name, col_name, snapshot_date=snapshot_date)
                     if num_stats:
                         profile.min_value = num_stats.get("min_value")
                         profile.max_value = num_stats.get("max_value")
@@ -67,7 +65,7 @@ def run_profiling(db_name: str | None = None) -> DataGlossary:
 
                 # String stats
                 if "TEXT" in col_type or "CHAR" in col_type or col_type == "":
-                    str_stats = get_string_stats(conn, table_name, col_name)
+                    str_stats = get_string_stats(conn, table_name, col_name, snapshot_date=snapshot_date)
                     if str_stats:
                         profile.min_length = str_stats.get("min_length")
                         profile.max_length = str_stats.get("max_length")
@@ -85,9 +83,9 @@ def run_profiling(db_name: str | None = None) -> DataGlossary:
             generated_at=datetime.now(timezone.utc).isoformat(),
         )
 
-        # Persist to dq_admin (overwrites previous run for this db_name)
-        save_artifact(db_name, "data_glossary", glossary.model_dump_json())
-        logger.info(f"Data glossary persisted to dq_admin for db '{db_name or 'default'}'")
+        # Persist per (db_name, snapshot_date)
+        save_artifact(db_name, snapshot_date, "data_glossary", glossary.model_dump_json())
+        logger.info(f"Data glossary persisted for db '{db_name or 'default'}' snapshot '{snapshot_date}'")
 
         return glossary
     finally:

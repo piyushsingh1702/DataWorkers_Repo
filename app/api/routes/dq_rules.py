@@ -60,13 +60,17 @@ class DQRuleOverrideRequest(DBNameRequest):
 
 
 @router.post("/generate")
-def generate_dq_rules(db_name: str | None = Query(default=None)):
-    """Generate data quality rules using AI."""
+def generate_dq_rules(
+    db_name: str | None = Query(default=None),
+    snapshot_date: str = Query(..., description="Snapshot date (YYYY-MM-DD)."),
+):
+    """Generate data quality rules using AI for one snapshot."""
     try:
-        rule_set = run_dq_rules_generation(db_name=db_name)
+        rule_set = run_dq_rules_generation(db_name=db_name, snapshot_date=snapshot_date)
         return {
             "status": "success",
             "db_name": db_name,
+            "snapshot_date": snapshot_date,
             "message": f"Generated {rule_set.total_rules} DQ rules",
             "summary": {
                 "total_rules": rule_set.total_rules,
@@ -76,14 +80,22 @@ def generate_dq_rules(db_name: str | None = Query(default=None)):
         }
     except (FileNotFoundError, LookupError) as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/results")
-def get_dq_rules(db_name: str | None = Query(default=None)):
-    """Get the generated DQ rules for a database."""
-    payload = load_artifact(db_name, "dq_rules")
+def get_dq_rules(
+    db_name: str | None = Query(default=None),
+    snapshot_date: str = Query(..., description="Snapshot date (YYYY-MM-DD)."),
+):
+    """Get the generated DQ rules for a (db_name, snapshot_date)."""
+    try:
+        payload = load_artifact(db_name, snapshot_date, "dq_rules")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if not payload:
         raise HTTPException(status_code=404, detail="DQ rules not found. Run rule generation first.")
     return json.loads(payload)
@@ -122,7 +134,7 @@ def override_dq_rule(request: DQRuleOverrideRequest):
     - Aggregate counts (``total_rules``, ``rules_by_dimension``, ``rules_by_type``)
       are recomputed after the change.
     """
-    payload = load_artifact(request.db_name, "dq_rules")
+    payload = load_artifact(request.db_name, request.snapshot_date, "dq_rules")
     if not payload:
         raise HTTPException(status_code=404, detail="DQ rules not found. Run rule generation first.")
 
@@ -169,11 +181,12 @@ def override_dq_rule(request: DQRuleOverrideRequest):
         affected_rule = new_rule
 
     _recompute_aggregates(rule_set)
-    save_artifact(request.db_name, "dq_rules", rule_set.model_dump_json())
+    save_artifact(request.db_name, request.snapshot_date, "dq_rules", rule_set.model_dump_json())
 
     return {
         "status": "success",
         "db_name": request.db_name,
+        "snapshot_date": request.snapshot_date,
         "action": action,
         "message": f"Rule '{request.rule_id}' {action}.",
         "applied_updates": update_fields,
@@ -187,14 +200,18 @@ def override_dq_rule(request: DQRuleOverrideRequest):
 
 
 @router.post("/execute")
-def execute_dq_rules(db_name: str | None = Query(default=None)):
-    """Execute DQ rules and produce scores."""
+def execute_dq_rules(
+    db_name: str | None = Query(default=None),
+    snapshot_date: str = Query(..., description="Snapshot date (YYYY-MM-DD)."),
+):
+    """Execute DQ rules and produce scores for one snapshot."""
     from app.agents.dq_executor_agent import run_dq_execution
     try:
-        report = run_dq_execution(db_name=db_name)
+        report = run_dq_execution(db_name=db_name, snapshot_date=snapshot_date)
         return {
             "status": "success",
             "db_name": db_name,
+            "snapshot_date": snapshot_date,
             "message": f"Executed {report.total_rules} rules. Overall score: {report.overall_score}%",
             "summary": {
                 "overall_score": report.overall_score,
@@ -205,5 +222,7 @@ def execute_dq_rules(db_name: str | None = Query(default=None)):
         }
     except (FileNotFoundError, LookupError) as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

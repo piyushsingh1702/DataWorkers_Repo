@@ -86,29 +86,63 @@ def get_indexes(conn: sqlite3.Connection, table_name: str) -> list[dict]:
     return indexes
 
 
-def get_row_count(conn: sqlite3.Connection, table_name: str) -> int:
-    """Get the row count of a table."""
-    cursor = conn.execute(f"SELECT COUNT(*) FROM '{table_name}'")
+def get_row_count(conn: sqlite3.Connection, table_name: str, snapshot_date: str | None = None) -> int:
+    """Get the row count of a table, optionally filtered to a single ``report_date`` snapshot."""
+    if snapshot_date is not None:
+        cursor = conn.execute(
+            f"SELECT COUNT(*) FROM \"{table_name}\" WHERE report_date = ?",
+            (snapshot_date,),
+        )
+    else:
+        cursor = conn.execute(f"SELECT COUNT(*) FROM \"{table_name}\"")
     return cursor.fetchone()[0]
 
 
-def get_sample_values(conn: sqlite3.Connection, table_name: str, column_name: str, limit: int = 20) -> list:
-    """Get sample distinct values from a column."""
-    cursor = conn.execute(
-        f"SELECT DISTINCT \"{column_name}\" FROM \"{table_name}\" WHERE \"{column_name}\" IS NOT NULL LIMIT ?",
-        (limit,),
-    )
+def get_sample_values(
+    conn: sqlite3.Connection,
+    table_name: str,
+    column_name: str,
+    limit: int = 20,
+    snapshot_date: str | None = None,
+) -> list:
+    """Get sample distinct values from a column (optionally filtered to a snapshot)."""
+    if snapshot_date is not None:
+        cursor = conn.execute(
+            f"SELECT DISTINCT \"{column_name}\" FROM \"{table_name}\" "
+            f"WHERE \"{column_name}\" IS NOT NULL AND report_date = ? LIMIT ?",
+            (snapshot_date, limit),
+        )
+    else:
+        cursor = conn.execute(
+            f"SELECT DISTINCT \"{column_name}\" FROM \"{table_name}\" "
+            f"WHERE \"{column_name}\" IS NOT NULL LIMIT ?",
+            (limit,),
+        )
     return [row[0] for row in cursor.fetchall()]
 
 
-def get_column_stats(conn: sqlite3.Connection, table_name: str, column_name: str) -> dict:
-    """Get basic statistics for a column."""
-    total = conn.execute(f"SELECT COUNT(*) FROM \"{table_name}\"").fetchone()[0]
+def get_column_stats(
+    conn: sqlite3.Connection,
+    table_name: str,
+    column_name: str,
+    snapshot_date: str | None = None,
+) -> dict:
+    """Get basic statistics for a column, optionally filtered to a snapshot."""
+    snap_clause = " WHERE report_date = ?" if snapshot_date is not None else ""
+    snap_args = (snapshot_date,) if snapshot_date is not None else ()
+    null_clause = (
+        f" AND \"{column_name}\" IS NULL" if snapshot_date is not None
+        else f" WHERE \"{column_name}\" IS NULL"
+    )
+
+    total = conn.execute(
+        f"SELECT COUNT(*) FROM \"{table_name}\"{snap_clause}", snap_args,
+    ).fetchone()[0]
     null_count = conn.execute(
-        f"SELECT COUNT(*) FROM \"{table_name}\" WHERE \"{column_name}\" IS NULL"
+        f"SELECT COUNT(*) FROM \"{table_name}\"{snap_clause}{null_clause}", snap_args,
     ).fetchone()[0]
     distinct_count = conn.execute(
-        f"SELECT COUNT(DISTINCT \"{column_name}\") FROM \"{table_name}\""
+        f"SELECT COUNT(DISTINCT \"{column_name}\") FROM \"{table_name}\"{snap_clause}", snap_args,
     ).fetchone()[0]
 
     return {
@@ -119,16 +153,23 @@ def get_column_stats(conn: sqlite3.Connection, table_name: str, column_name: str
     }
 
 
-def get_numeric_stats(conn: sqlite3.Connection, table_name: str, column_name: str) -> dict:
-    """Get numeric statistics for a column."""
+def get_numeric_stats(
+    conn: sqlite3.Connection,
+    table_name: str,
+    column_name: str,
+    snapshot_date: str | None = None,
+) -> dict:
+    """Get numeric statistics for a column, optionally filtered to a snapshot."""
+    snap_filter = " AND report_date = ?" if snapshot_date is not None else ""
+    args: tuple = (snapshot_date,) if snapshot_date is not None else ()
     cursor = conn.execute(f"""
-        SELECT 
+        SELECT
             MIN(CAST(\"{column_name}\" AS REAL)) as min_val,
             MAX(CAST(\"{column_name}\" AS REAL)) as max_val,
             AVG(CAST(\"{column_name}\" AS REAL)) as avg_val
         FROM \"{table_name}\"
-        WHERE \"{column_name}\" IS NOT NULL
-    """)
+        WHERE \"{column_name}\" IS NOT NULL{snap_filter}
+    """, args)
     row = cursor.fetchone()
     if row and row[0] is not None:
         return {
@@ -139,16 +180,23 @@ def get_numeric_stats(conn: sqlite3.Connection, table_name: str, column_name: st
     return {}
 
 
-def get_string_stats(conn: sqlite3.Connection, table_name: str, column_name: str) -> dict:
-    """Get string length statistics for a column."""
+def get_string_stats(
+    conn: sqlite3.Connection,
+    table_name: str,
+    column_name: str,
+    snapshot_date: str | None = None,
+) -> dict:
+    """Get string length statistics for a column, optionally filtered to a snapshot."""
+    snap_filter = " AND report_date = ?" if snapshot_date is not None else ""
+    args: tuple = (snapshot_date,) if snapshot_date is not None else ()
     cursor = conn.execute(f"""
-        SELECT 
+        SELECT
             MIN(LENGTH(\"{column_name}\")) as min_len,
             MAX(LENGTH(\"{column_name}\")) as max_len,
             AVG(LENGTH(\"{column_name}\")) as avg_len
         FROM \"{table_name}\"
-        WHERE \"{column_name}\" IS NOT NULL
-    """)
+        WHERE \"{column_name}\" IS NOT NULL{snap_filter}
+    """, args)
     row = cursor.fetchone()
     if row and row[0] is not None:
         return {
@@ -159,16 +207,24 @@ def get_string_stats(conn: sqlite3.Connection, table_name: str, column_name: str
     return {}
 
 
-def get_top_values(conn: sqlite3.Connection, table_name: str, column_name: str, limit: int = 10) -> list[dict]:
-    """Get top N most frequent values in a column."""
+def get_top_values(
+    conn: sqlite3.Connection,
+    table_name: str,
+    column_name: str,
+    limit: int = 10,
+    snapshot_date: str | None = None,
+) -> list[dict]:
+    """Get top N most frequent values in a column, optionally filtered to a snapshot."""
+    snap_filter = " AND report_date = ?" if snapshot_date is not None else ""
+    args: tuple = (snapshot_date, limit) if snapshot_date is not None else (limit,)
     cursor = conn.execute(f"""
         SELECT \"{column_name}\" as value, COUNT(*) as frequency
         FROM \"{table_name}\"
-        WHERE \"{column_name}\" IS NOT NULL
+        WHERE \"{column_name}\" IS NOT NULL{snap_filter}
         GROUP BY \"{column_name}\"
         ORDER BY frequency DESC
         LIMIT ?
-    """, (limit,))
+    """, args)
     return [{"value": str(row[0]), "frequency": row[1]} for row in cursor.fetchall()]
 
 

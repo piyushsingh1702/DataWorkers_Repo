@@ -42,13 +42,17 @@ class ProfilingOverrideRequest(DBNameRequest):
 
 
 @router.post("/run")
-def run_profiling_agent(db_name: str | None = Query(default=None)):
-    """Run the profiling agent to generate data glossary."""
+def run_profiling_agent(
+    db_name: str | None = Query(default=None),
+    snapshot_date: str = Query(..., description="Snapshot date (YYYY-MM-DD)."),
+):
+    """Run the profiling agent to generate data glossary for one snapshot."""
     try:
-        glossary = run_profiling(db_name)
+        glossary = run_profiling(db_name, snapshot_date=snapshot_date)
         return {
             "status": "success",
             "db_name": db_name,
+            "snapshot_date": snapshot_date,
             "message": f"Profiled {glossary.total_entries} columns",
             "summary": {
                 "total_entries": glossary.total_entries,
@@ -58,14 +62,22 @@ def run_profiling_agent(db_name: str | None = Query(default=None)):
         }
     except (FileNotFoundError, LookupError) as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/results")
-def get_profiling_results(db_name: str | None = Query(default=None)):
-    """Get the data glossary results for a database."""
-    payload = load_artifact(db_name, "data_glossary")
+def get_profiling_results(
+    db_name: str | None = Query(default=None),
+    snapshot_date: str = Query(..., description="Snapshot date (YYYY-MM-DD)."),
+):
+    """Get the data glossary results for a (db_name, snapshot_date)."""
+    try:
+        payload = load_artifact(db_name, snapshot_date, "data_glossary")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if not payload:
         raise HTTPException(status_code=404, detail="Data glossary not found. Run profiling first.")
     return json.loads(payload)
@@ -73,13 +85,11 @@ def get_profiling_results(db_name: str | None = Query(default=None)):
 
 @router.post("/override")
 def override_profiling_results(request: ProfilingOverrideRequest):
-    """Manually overwrite LLM-generated profiling output for a table or column.
-
-    If ``column_name`` is supplied, only that glossary entry is updated.
-    Otherwise the override is applied to every entry belonging to
-    ``table_name``.
-    """
-    payload = load_artifact(request.db_name, "data_glossary")
+    """Manually overwrite LLM-generated profiling output for a table or column in one snapshot."""
+    try:
+        payload = load_artifact(request.db_name, request.snapshot_date, "data_glossary")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if not payload:
         raise HTTPException(status_code=404, detail="Data glossary not found. Run profiling first.")
 
@@ -112,11 +122,12 @@ def override_profiling_results(request: ProfilingOverrideRequest):
         for field, value in update_fields.items():
             setattr(entry, field, value)
 
-    save_artifact(request.db_name, "data_glossary", glossary.model_dump_json())
+    save_artifact(request.db_name, request.snapshot_date, "data_glossary", glossary.model_dump_json())
 
     return {
         "status": "success",
         "db_name": request.db_name,
+        "snapshot_date": request.snapshot_date,
         "message": f"Overrode profiling output for {len(targets)} entr{'y' if len(targets) == 1 else 'ies'}",
         "updated_entries": [
             {"table": e.table_name, "column": e.column_name} for e in targets

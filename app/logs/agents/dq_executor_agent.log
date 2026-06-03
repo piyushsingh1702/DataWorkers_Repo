@@ -1,0 +1,7 @@
+2026-06-03 11:58:08,328 [INFO] app.agents.dq_executor_agent: hello from dq_executor_agent
+2026-06-03 12:43:32,883 [INFO] app.agents.dq_executor_agent: Executing 56 DQ rules against 'loan1' (app\database\loan1.db) for snapshot '2025-01-01'
+2026-06-03 12:43:32,911 [INFO] app.agents.dq_executor_agent: DQ scores persisted for db 'loan1' snapshot '2025-01-01'
+2026-06-03 12:43:43,356 [INFO] app.agents.dq_executor_agent: DQ report persisted for db 'loan1' snapshot '2025-01-01'
+2026-06-03 13:29:53,809 [INFO] app.agents.dq_executor_agent: Executing 58 DQ rules against 'loan1' (app\database\loan1.db) for snapshot '2025-02-01'
+2026-06-03 13:29:53,937 [INFO] app.agents.dq_executor_agent: DQ scores persisted for db 'loan1' snapshot '2025-02-01'
+2026-06-03 13:30:04,445 [INFO] app.agents.dq_executor_agent: DQ report persisted for db 'loan1' snapshot '2025-02-01'

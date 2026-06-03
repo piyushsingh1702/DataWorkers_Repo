@@ -17,6 +17,13 @@ class DBNameRequest(BaseModel):
         default=None,
         description="Registered database name (see GET /api/v1/database/list).",
     )
+    snapshot_date: str | None = Field(
+        default=None,
+        description=(
+            "Snapshot date (YYYY-MM-DD) to operate on. Required for all "
+            "snapshot-scoped operations. See GET /api/v1/database/snapshots."
+        ),
+    )
 
 
 class PipelineRunRequest(DBNameRequest):

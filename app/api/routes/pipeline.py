@@ -23,15 +23,22 @@ class PipelineExtras(BaseModel):
 @router.post("/run")
 def run_pipeline(
     db_name: str | None = Query(default=None),
+    snapshot_date: str = Query(..., description="Snapshot date (YYYY-MM-DD)."),
+    setup_database: bool = Query(
+        default=True,
+        description="If true (default), recreate the sample DB with all default snapshots before running.",
+    ),
     extras: PipelineExtras | None = None,
 ):
-    """Run the full data quality pipeline against a named database."""
+    """Run the full data quality pipeline for a (db_name, snapshot_date)."""
     extras = extras or PipelineExtras()
     try:
         return run_full_pipeline(
             db_name=db_name,
+            snapshot_date=snapshot_date,
             description=extras.description,
             properties=extras.properties,
+            setup_database=setup_database,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

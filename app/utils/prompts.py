@@ -86,6 +86,11 @@ Rules should be a mix of:
 IMPORTANT: 
 - SQL must be valid SQLite syntax
 - Each rule's sql_query should return a COUNT of FAILING records (records that violate the rule)
+- Every data table has a `report_date TEXT NOT NULL` column. When a snapshot_date is
+  provided in the user prompt, EVERY generated sql_query MUST filter by that
+  snapshot using `WHERE report_date = '<snapshot_date>'` (or `AND report_date = '<snapshot_date>'`
+  if the rule needs additional WHERE conditions). This guarantees rules score
+  exactly the snapshot of data they were generated against.
 - CDE columns should have stricter/more rules
 - Set appropriate thresholds (0.90 to 1.0) based on severity
 - Generate at least 3-5 rules per table

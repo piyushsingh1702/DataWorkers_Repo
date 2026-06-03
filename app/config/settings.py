@@ -4,7 +4,41 @@ from pathlib import Path
 from pydantic_settings import BaseSettings
 
 
+def _resolve_env_files() -> tuple[str, ...]:
+    """Decide which dotenv files Pydantic should load.
+
+    Reads ``MODE`` (from the real environment first, falling back to the
+    committed ``.env``) and:
+
+    * ``MODE=local``  → load ``.env`` then ``.env.local``. Values in
+      ``.env.local`` (including ``COMPASS_API_KEY``) win.
+    * anything else → load only ``.env``. The ``COMPASS_API_KEY`` set there
+      is used as-is.
+    """
+    mode = os.environ.get("MODE")
+    if mode is None:
+        # Tiny manual parse of `.env` so we can read MODE before
+        # pydantic-settings even constructs the Settings object.
+        env_path = Path(".env")
+        if env_path.exists():
+            for line in env_path.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                if key.strip() == "MODE":
+                    mode = value.strip().strip('"').strip("'")
+                    break
+    mode = (mode or "").lower()
+    if mode == "local":
+        return (".env", ".env.local")
+    return (".env",)
+
+
 class Settings(BaseSettings):
+    # Resolution mode (local vs anything else); see _resolve_env_files.
+    mode: str = "prod"
+
     # Compass API
     compass_api_key: str = ""
     base_url: str = "https://api.core42.ai/v1"
@@ -14,12 +48,14 @@ class Settings(BaseSettings):
     database_dir: str = "app/database"
     default_db_name: str = "sample"
     output_dir: str = "app/outputs"
+    log_dir: str = "app/logs"
 
     # App
     log_level: str = "INFO"
 
     class Config:
-        env_file = ".env"
+        # Files are evaluated left-to-right; later files override earlier ones.
+        env_file = _resolve_env_files()
         env_file_encoding = "utf-8"
         extra = "ignore"
 
@@ -30,6 +66,12 @@ class Settings(BaseSettings):
     @property
     def outputs_path(self) -> Path:
         p = Path(self.output_dir)
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+
+    @property
+    def logs_path(self) -> Path:
+        p = Path(self.log_dir)
         p.mkdir(parents=True, exist_ok=True)
         return p
 

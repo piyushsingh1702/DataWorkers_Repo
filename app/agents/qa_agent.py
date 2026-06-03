@@ -91,8 +91,8 @@ def _filter_scores(report: DQScoreReport, table: str, column: str | None) -> dic
     return {"table_score": table_score, "rule_results": rule_results}
 
 
-def _load_optional(model_cls, db_name: str | None, kind: str):
-    payload = load_artifact(db_name, kind)
+def _load_optional(model_cls, db_name: str | None, snapshot_date: str | None, kind: str):
+    payload = load_artifact(db_name, snapshot_date, kind)
     if not payload:
         return None
     return model_cls.model_validate_json(payload)
@@ -100,22 +100,19 @@ def _load_optional(model_cls, db_name: str | None, kind: str):
 
 def build_scoped_context(
     db_name: str | None,
+    snapshot_date: str | None,
     table: str,
     column: str | None,
 ) -> dict[str, Any]:
-    """Load every artifact and return a dict scoped to ``table`` (+ optional ``column``).
-
-    Raises ``QAScopeError`` if neither a catalogue entry nor a glossary entry
-    exists for the requested scope (i.e. nothing to talk about).
-    """
-    catalogue = _load_optional(TechnicalCatalogue, db_name, "technical_catalogue")
-    glossary = _load_optional(DataGlossary, db_name, "data_glossary")
-    classification = _load_optional(ClassificationReport, db_name, "classification_report")
-    rules = _load_optional(DQRuleSet, db_name, "dq_rules")
-    scores = _load_optional(DQScoreReport, db_name, "dq_scores")
+    """Load every artifact for ``(db_name, snapshot_date)`` and scope to ``table`` (+ optional ``column``)."""
+    catalogue = _load_optional(TechnicalCatalogue, db_name, snapshot_date, "technical_catalogue")
+    glossary = _load_optional(DataGlossary, db_name, snapshot_date, "data_glossary")
+    classification = _load_optional(ClassificationReport, db_name, snapshot_date, "classification_report")
+    rules = _load_optional(DQRuleSet, db_name, snapshot_date, "dq_rules")
+    scores = _load_optional(DQScoreReport, db_name, snapshot_date, "dq_scores")
 
     ctx: dict[str, Any] = {
-        "scope": {"db_name": db_name, "table": table, "column": column},
+        "scope": {"db_name": db_name, "snapshot_date": snapshot_date, "table": table, "column": column},
         "technical_catalogue": _filter_catalogue(catalogue, table, column) if catalogue else None,
         "data_glossary_entries": _filter_glossary(glossary, table, column) if glossary else [],
         "classifications": _filter_classifications(classification, table, column) if classification else [],
@@ -133,38 +130,41 @@ def build_scoped_context(
     if not found:
         scope_str = f"{table}.{column}" if column else table
         raise QAScopeError(
-            f"No metadata or DQ artifacts found for '{scope_str}' in db '{db_name or 'default'}'. "
-            "Ensure the table/column name is correct and that discovery/profiling have been run."
+            f"No metadata or DQ artifacts found for '{scope_str}' in db '{db_name or 'default'}' "
+            f"snapshot '{snapshot_date}'. Ensure the table/column name is correct and that "
+            f"discovery/profiling have been run for this snapshot."
         )
     return ctx
 
 
 def answer_question(
     db_name: str | None,
+    snapshot_date: str | None,
     table: str,
     column: str | None,
     question: str,
 ) -> dict[str, Any]:
-    """Answer ``question`` strictly within the scope of ``table`` (and optionally ``column``)."""
+    """Answer ``question`` strictly within the scope of ``table`` (and optionally ``column``) for one snapshot."""
     if not question or not question.strip():
         raise ValueError("question must be a non-empty string")
 
-    context = build_scoped_context(db_name, table, column)
+    context = build_scoped_context(db_name, snapshot_date, table, column)
 
     scope_label = f"table '{table}'" + (f", column '{column}'" if column else "")
     user_prompt = (
-        f"Scope: {scope_label} in database '{db_name or 'default'}'.\n\n"
+        f"Scope: {scope_label} in database '{db_name or 'default'}' snapshot '{snapshot_date}'.\n\n"
         f"CONTEXT (JSON, already filtered to scope above):\n"
         f"```json\n{json.dumps(context, indent=2, default=str)}\n```\n\n"
         f"QUESTION: {question.strip()}\n\n"
         f"Answer using ONLY this CONTEXT. Do not reference other tables or columns."
     )
 
-    logger.info(f"Q&A on {scope_label} (db='{db_name or 'default'}'): {question[:120]}")
+    logger.info(f"Q&A on {scope_label} (db='{db_name or 'default'}', snapshot='{snapshot_date}'): {question[:120]}")
     answer = call_llm(QA_SYSTEM_PROMPT, user_prompt, temperature=0.2)
 
     return {
         "db_name": db_name,
+        "snapshot_date": snapshot_date,
         "table": table,
         "column": column,
         "question": question,

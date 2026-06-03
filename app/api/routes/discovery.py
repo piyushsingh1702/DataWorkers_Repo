@@ -47,13 +47,17 @@ class DiscoveryOverrideRequest(DBNameRequest):
 
 
 @router.post("/run")
-def run_discovery_agent(db_name: str | None = Query(default=None)):
-    """Run the discovery agent to build a technical catalogue."""
+def run_discovery_agent(
+    db_name: str | None = Query(default=None),
+    snapshot_date: str = Query(..., description="Snapshot date (YYYY-MM-DD)."),
+):
+    """Run the discovery agent to build a technical catalogue for one snapshot."""
     try:
-        catalogue = run_discovery(db_name)
+        catalogue = run_discovery(db_name, snapshot_date=snapshot_date)
         return {
             "status": "success",
             "db_name": db_name,
+            "snapshot_date": snapshot_date,
             "message": f"Discovered {catalogue.total_tables} tables, {catalogue.total_columns} columns",
             "summary": {
                 "total_tables": catalogue.total_tables,
@@ -63,14 +67,22 @@ def run_discovery_agent(db_name: str | None = Query(default=None)):
         }
     except (FileNotFoundError, LookupError) as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/results")
-def get_discovery_results(db_name: str | None = Query(default=None)):
-    """Get the technical catalogue results for a database."""
-    payload = load_artifact(db_name, "technical_catalogue")
+def get_discovery_results(
+    db_name: str | None = Query(default=None),
+    snapshot_date: str = Query(..., description="Snapshot date (YYYY-MM-DD)."),
+):
+    """Get the technical catalogue results for a (db_name, snapshot_date)."""
+    try:
+        payload = load_artifact(db_name, snapshot_date, "technical_catalogue")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if not payload:
         raise HTTPException(status_code=404, detail="Technical catalogue not found. Run discovery first.")
     return json.loads(payload)
@@ -78,13 +90,11 @@ def get_discovery_results(db_name: str | None = Query(default=None)):
 
 @router.post("/override")
 def override_discovery_results(request: DiscoveryOverrideRequest):
-    """Manually overwrite LLM-generated discovery output for a table or column.
-
-    Loads the persisted technical catalogue, applies the user's edits to the
-    matching table (and optional column), revalidates the model, and saves it
-    back. Existing fields not present in ``updates`` are preserved.
-    """
-    payload = load_artifact(request.db_name, "technical_catalogue")
+    """Manually overwrite LLM-generated discovery output for a table or column in one snapshot."""
+    try:
+        payload = load_artifact(request.db_name, request.snapshot_date, "technical_catalogue")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if not payload:
         raise HTTPException(status_code=404, detail="Technical catalogue not found. Run discovery first.")
 
@@ -118,11 +128,12 @@ def override_discovery_results(request: DiscoveryOverrideRequest):
             setattr(column, field, value)
         target = {"table": table.name, "column": column.name}
 
-    save_artifact(request.db_name, "technical_catalogue", catalogue.model_dump_json())
+    save_artifact(request.db_name, request.snapshot_date, "technical_catalogue", catalogue.model_dump_json())
 
     return {
         "status": "success",
         "db_name": request.db_name,
+        "snapshot_date": request.snapshot_date,
         "message": f"Overrode discovery output for {target}",
         "applied_updates": validated.model_dump(exclude_unset=True),
     }

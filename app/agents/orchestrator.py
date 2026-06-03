@@ -10,7 +10,7 @@ from app.agents.profiling_agent import run_profiling
 from app.agents.classification_agent import run_classification
 from app.agents.dq_rules_agent import run_dq_rules_generation
 from app.agents.dq_executor_agent import run_dq_execution
-from app.database.setup_sample_db import create_sample_database
+from app.database.setup_mortgage_sample_db import create_mortgage_database
 
 logger = logging.getLogger(__name__)
 
@@ -50,41 +50,55 @@ pipeline_state = PipelineState()
 
 def run_full_pipeline(
     db_name: str | None = None,
+    snapshot_date: str | None = None,
     description: str | None = None,
     properties: dict | None = None,
+    setup_database: bool = True,
 ) -> dict:
-    """
-    Run the full data quality pipeline end-to-end against a named database.
+    """Run the full DQ pipeline against a (db_name, snapshot_date) pair.
 
     Args:
-        db_name: Unique name for the sample database. The DB is created (or
-            recreated) under settings.database_dir as ``<db_name>.db`` and
-            registered in the central dq_admin registry.
+        db_name: Registered database name. The DB is (re)created when
+            ``setup_database=True`` with all default snapshots.
+        snapshot_date: REQUIRED. The data snapshot to run discovery / profiling /
+            classification / DQ rule generation & execution against.
         description: Optional description stored in the dq_admin registry.
         properties: Optional metadata stored in the dq_admin registry.
+        setup_database: When True (default), recreate the sample DB before
+            running the pipeline. Set False to run against an existing DB whose
+            snapshots are already populated.
 
     Returns summary of results.
     """
+    if not snapshot_date:
+        raise ValueError("snapshot_date is required (e.g. '2025-01-01').")
+
     global pipeline_state
     pipeline_state = PipelineState()
     pipeline_state.status = PipelineStatus.RUNNING
     pipeline_state.started_at = datetime.now(timezone.utc).isoformat()
 
     try:
-        # Step 1: Setup database
-        pipeline_state.current_step = "database_setup"
-        logger.info(f"Pipeline Step 1: Setting up sample database '{db_name or 'default'}'")
-        create_sample_database(
-            db_name=db_name,
-            description=description,
-            properties=properties,
-        )
-        pipeline_state.steps_completed.append("database_setup")
+        if setup_database:
+            # Step 1: Load this snapshot. If it already exists, only its rows
+            # are replaced; other snapshots in the same DB are preserved.
+            pipeline_state.current_step = "database_setup"
+            logger.info(
+                f"Pipeline Step 1: Loading snapshot '{snapshot_date}' into "
+                f"database '{db_name or 'default'}'"
+            )
+            create_mortgage_database(
+                db_name=db_name,
+                snapshot_date=snapshot_date,
+                description=description,
+                properties=properties,
+            )
+            pipeline_state.steps_completed.append("database_setup")
 
         # Step 2: Connection test
         pipeline_state.current_step = "connection_test"
         logger.info("Pipeline Step 2: Testing connection")
-        conn_result = run_connection_test(db_name)
+        conn_result = run_connection_test(db_name, snapshot_date=snapshot_date)
         if conn_result["status"] != "success":
             raise RuntimeError(f"Connection failed: {conn_result['message']}")
         pipeline_state.steps_completed.append("connection_test")
@@ -92,31 +106,33 @@ def run_full_pipeline(
         # Step 3: Discovery
         pipeline_state.current_step = "discovery"
         logger.info("Pipeline Step 3: Running discovery")
-        catalogue = run_discovery(db_name)
+        catalogue = run_discovery(db_name, snapshot_date=snapshot_date)
         pipeline_state.steps_completed.append("discovery")
 
         # Step 4: Profiling
         pipeline_state.current_step = "profiling"
         logger.info("Pipeline Step 4: Running profiling")
-        glossary = run_profiling(db_name)
+        glossary = run_profiling(db_name, snapshot_date=snapshot_date)
         pipeline_state.steps_completed.append("profiling")
 
         # Step 5: Classification
         pipeline_state.current_step = "classification"
         logger.info("Pipeline Step 5: Running classification")
-        classification = run_classification(glossary, db_name=db_name)
+        classification = run_classification(glossary, db_name=db_name, snapshot_date=snapshot_date)
         pipeline_state.steps_completed.append("classification")
 
         # Step 6: DQ Rules Generation
         pipeline_state.current_step = "dq_rules_generation"
         logger.info("Pipeline Step 6: Generating DQ rules")
-        rule_set = run_dq_rules_generation(catalogue, glossary, classification, db_name=db_name)
+        rule_set = run_dq_rules_generation(
+            catalogue, glossary, classification, db_name=db_name, snapshot_date=snapshot_date
+        )
         pipeline_state.steps_completed.append("dq_rules_generation")
 
         # Step 7: DQ Execution
         pipeline_state.current_step = "dq_execution"
         logger.info("Pipeline Step 7: Executing DQ rules")
-        score_report = run_dq_execution(rule_set, db_name=db_name)
+        score_report = run_dq_execution(rule_set, db_name=db_name, snapshot_date=snapshot_date)
         pipeline_state.steps_completed.append("dq_execution")
 
         pipeline_state.status = PipelineStatus.COMPLETED
@@ -126,6 +142,7 @@ def run_full_pipeline(
         return {
             "status": "completed",
             "db_name": db_name,
+            "snapshot_date": snapshot_date,
             "overall_dq_score": score_report.overall_score,
             "total_rules": score_report.total_rules,
             "rules_passed": score_report.rules_passed,

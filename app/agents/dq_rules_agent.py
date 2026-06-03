@@ -20,37 +20,42 @@ def run_dq_rules_generation(
     glossary: DataGlossary | None = None,
     classification: ClassificationReport | None = None,
     db_name: str | None = None,
+    snapshot_date: str | None = None,
 ) -> DQRuleSet:
+    """Generate DQ rules for one (db_name, snapshot_date) pair.
+
+    All generated SQL is required to filter by ``report_date = '<snapshot_date>'``
+    so rules execute against exactly the same data the catalogue/glossary/
+    classification were derived from.
     """
-    Generate data quality rules based on catalogue, glossary, and classification.
-    All rules are AI-generated and mapped to DQ dimensions.
-    """
-    # Load from dq_admin if not provided
     if catalogue is None:
-        payload = load_artifact(db_name, "technical_catalogue")
+        payload = load_artifact(db_name, snapshot_date, "technical_catalogue")
         if not payload:
             raise FileNotFoundError(
-                f"Technical catalogue not found for db '{db_name or 'default'}'. Run discovery first."
+                f"Technical catalogue not found for db '{db_name or 'default'}' snapshot '{snapshot_date}'. "
+                "Run discovery first."
             )
         catalogue = TechnicalCatalogue.model_validate_json(payload)
 
     if glossary is None:
-        payload = load_artifact(db_name, "data_glossary")
+        payload = load_artifact(db_name, snapshot_date, "data_glossary")
         if not payload:
             raise FileNotFoundError(
-                f"Data glossary not found for db '{db_name or 'default'}'. Run profiling first."
+                f"Data glossary not found for db '{db_name or 'default'}' snapshot '{snapshot_date}'. "
+                "Run profiling first."
             )
         glossary = DataGlossary.model_validate_json(payload)
 
     if classification is None:
-        payload = load_artifact(db_name, "classification_report")
+        payload = load_artifact(db_name, snapshot_date, "classification_report")
         if not payload:
             raise FileNotFoundError(
-                f"Classification report not found for db '{db_name or 'default'}'. Run classification first."
+                f"Classification report not found for db '{db_name or 'default'}' snapshot '{snapshot_date}'. "
+                "Run classification first."
             )
         classification = ClassificationReport.model_validate_json(payload)
 
-    logger.info("Generating DQ rules using AI agent")
+    logger.info(f"Generating DQ rules using AI agent (snapshot={snapshot_date})")
 
     # Build CDE lookup
     cde_columns = set()
@@ -61,7 +66,7 @@ def run_dq_rules_generation(
     # Generate rules per table
     all_rules = []
     for table in catalogue.tables:
-        table_rules = _generate_rules_for_table(table, glossary, classification, cde_columns)
+        table_rules = _generate_rules_for_table(table, glossary, classification, cde_columns, snapshot_date)
         all_rules.extend(table_rules)
 
     # Compute summaries
@@ -80,14 +85,13 @@ def run_dq_rules_generation(
         generated_at=datetime.now(timezone.utc).isoformat(),
     )
 
-    # Persist to dq_admin (overwrites previous run for this db_name)
-    save_artifact(db_name, "dq_rules", rule_set.model_dump_json())
-    logger.info(f"DQ rules persisted to dq_admin ({len(all_rules)} rules) for db '{db_name or 'default'}'")
+    save_artifact(db_name, snapshot_date, "dq_rules", rule_set.model_dump_json())
+    logger.info(f"DQ rules persisted ({len(all_rules)} rules) for db '{db_name or 'default'}' snapshot '{snapshot_date}'")
 
     return rule_set
 
 
-def _generate_rules_for_table(table, glossary, classification, cde_columns) -> list[DQRule]:
+def _generate_rules_for_table(table, glossary, classification, cde_columns, snapshot_date: str | None) -> list[DQRule]:
     """Generate DQ rules for a single table using LLM."""
     # Build context
     columns_context = []
@@ -122,12 +126,22 @@ def _generate_rules_for_table(table, glossary, classification, cde_columns) -> l
             for fk in table.foreign_keys
         )
 
+    snapshot_clause = ""
+    if snapshot_date:
+        snapshot_clause = (
+            f"\n\nIMPORTANT: Every generated SQL query MUST include a "
+            f"`WHERE report_date = '{snapshot_date}'` filter (or `AND report_date = '{snapshot_date}'` "
+            f"if there are other WHERE conditions) so the rule scores only this data snapshot. "
+            f"All data tables have a `report_date TEXT` column."
+        )
+
     user_prompt = (
-        f"Generate DQ rules for table: {table.name} ({table.row_count} rows)\n\n"
+        f"Generate DQ rules for table: {table.name} ({table.row_count} rows in snapshot)\n\n"
         f"Columns:\n" + "\n".join(columns_context) + fk_context +
         f"\n\nGenerate 3-5 rules covering multiple DQ dimensions. "
         f"Prioritize CDE columns for business rules. "
         f"Use rule IDs starting with DQ_{table.name.upper()}_"
+        f"{snapshot_clause}"
     )
 
     try:

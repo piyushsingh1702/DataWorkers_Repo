@@ -26,27 +26,29 @@ DIMENSIONS = ["Accuracy", "Completeness", "Consistency", "Timeliness", "Validity
 def run_dq_execution(
     rule_set: DQRuleSet | None = None,
     db_name: str | None = None,
+    snapshot_date: str | None = None,
 ) -> DQScoreReport:
-    """
-    Execute all DQ rules and produce consolidated scores.
-    """
-    # Load rules from dq_admin if not provided
+    """Execute all DQ rules and produce consolidated scores for one snapshot."""
     if rule_set is None:
-        payload = load_artifact(db_name, "dq_rules")
+        payload = load_artifact(db_name, snapshot_date, "dq_rules")
         if not payload:
             raise FileNotFoundError(
-                f"DQ rules not found for db '{db_name or 'default'}'. Run rule generation first."
+                f"DQ rules not found for db '{db_name or 'default'}' snapshot '{snapshot_date}'. "
+                "Run rule generation first."
             )
         rule_set = DQRuleSet.model_validate_json(payload)
 
     path = resolve_db_path(db_name)
-    logger.info(f"Executing {rule_set.total_rules} DQ rules against '{db_name or 'default'}' ({path})")
+    logger.info(
+        f"Executing {rule_set.total_rules} DQ rules against '{db_name or 'default'}' "
+        f"({path}) for snapshot '{snapshot_date}'"
+    )
 
     conn = get_connection(path)
     try:
         rule_results = []
         for rule in rule_set.rules:
-            result = _execute_rule(conn, rule)
+            result = _execute_rule(conn, rule, snapshot_date)
             rule_results.append(result)
 
         # Calculate scores
@@ -69,23 +71,22 @@ def run_dq_execution(
             generated_at=datetime.now(timezone.utc).isoformat(),
         )
 
-        # Persist scores to dq_admin (overwrites previous run for this db_name)
-        save_artifact(db_name, "dq_scores", report.model_dump_json())
-        logger.info(f"DQ scores persisted to dq_admin for db '{db_name or 'default'}'")
+        # Persist scores per (db_name, snapshot_date)
+        save_artifact(db_name, snapshot_date, "dq_scores", report.model_dump_json())
+        logger.info(f"DQ scores persisted for db '{db_name or 'default'}' snapshot '{snapshot_date}'")
 
         # Generate markdown report with AI insights
-        _generate_markdown_report(report, db_name)
+        _generate_markdown_report(report, db_name, snapshot_date)
 
         return report
     finally:
         conn.close()
 
 
-def _execute_rule(conn, rule) -> RuleResult:
+def _execute_rule(conn, rule, snapshot_date: str | None) -> RuleResult:
     """Execute a single DQ rule and return the result."""
-    # Get total records for the table
     try:
-        total_records = get_row_count(conn, rule.table_name)
+        total_records = get_row_count(conn, rule.table_name, snapshot_date=snapshot_date)
     except Exception:
         total_records = 0
 
@@ -190,7 +191,7 @@ def _calculate_overall_score(dimension_scores: list[DimensionScore]) -> float:
     return round(sum(d.score for d in active_dims) / len(active_dims), 2)
 
 
-def _generate_markdown_report(report: DQScoreReport, db_name: str | None):
+def _generate_markdown_report(report: DQScoreReport, db_name: str | None, snapshot_date: str | None):
     """Generate a markdown report with AI-driven insights."""
     # Build summary for AI
     summary_lines = [
@@ -229,7 +230,8 @@ def _generate_markdown_report(report: DQScoreReport, db_name: str | None):
     md = f"""# Data Quality Report
 
 **Generated:** {report.generated_at}  
-**Database:** {report.database_name}
+**Database:** {report.database_name}  
+**Snapshot:** {snapshot_date or 'N/A'}
 
 ## Overall Score: {report.overall_score}%
 
@@ -266,6 +268,6 @@ def _generate_markdown_report(report: DQScoreReport, db_name: str | None):
                 f"- **Failed Records:** {r.failed_records}/{r.total_records}\n\n"
             )
 
-    # Persist markdown report to dq_admin (overwrites previous run)
-    save_dq_report_markdown(db_name, md)
-    logger.info(f"DQ report persisted to dq_admin for db '{db_name or 'default'}'")
+    # Persist markdown report per (db_name, snapshot_date)
+    save_dq_report_markdown(db_name, snapshot_date, md)
+    logger.info(f"DQ report persisted for db '{db_name or 'default'}' snapshot '{snapshot_date}'")
