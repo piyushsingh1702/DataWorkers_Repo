@@ -1,0 +1,2 @@
+# Keep the logs/ directory tracked even when empty.
+# Actual *.log files are gitignored.

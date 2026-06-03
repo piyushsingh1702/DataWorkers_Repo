@@ -1,0 +1,63 @@
+{
+  "name": "Autonomous Data Governance Assistant",
+  "version": "0.1.0",
+  "description": "Agentic data-quality and governance platform: a team of LLM-powered agents discover, profile, classify, generate DQ rules, execute them, and trend results across snapshots of a SQLite mortgage dataset, exposed via FastAPI.",
+  "use_case": "data-governance",
+  "category": "agentic-pipeline",
+  "entry_points": {
+    "api": "run.py",
+    "http": {
+      "host": "0.0.0.0",
+      "port": 8000,
+      "endpoint": "POST /run",
+      "docs": "GET /docs"
+    }
+  },
+  "runtime": {
+    "language": "python",
+    "python_version": ">=3.11",
+    "compute": "cpu-only",
+    "expected_max_runtime_seconds": 600
+  },
+  "llm": {
+    "provider": "compass",
+    "base_url": "https://api.core42.ai/v1",
+    "models": ["gpt-4.1", "gpt-5.1"],
+    "auth_env_var": "COMPASS_API_KEY"
+  },
+  "agents": [
+    {"name": "orchestrator",         "role": "Coordinates the end-to-end pipeline."},
+    {"name": "connection_agent",     "role": "Validates database connectivity and metadata."},
+    {"name": "discovery_agent",      "role": "Builds the technical catalogue of tables and columns."},
+    {"name": "profiling_agent",      "role": "Computes column-level statistical profiles."},
+    {"name": "classification_agent", "role": "Tags PII / business categories per column."},
+    {"name": "dq_rules_agent",       "role": "Synthesises data-quality rules from profiles + classifications."},
+    {"name": "dq_executor_agent",    "role": "Executes rules against the snapshot and scores results."},
+    {"name": "qa_agent",             "role": "Answers natural-language questions over results and trends."}
+  ],
+  "data": {
+    "type": "synthetic",
+    "source": "generated_on_demand",
+    "loader": "app/database/setup_mortgage_sample_db.py:create_mortgage_database",
+    "dataset": "mortgage_demo (8 tables: branches, loan_officers, customers, applications, loans, collaterals, payments, credit_history)",
+    "max_size_mb": 5
+  },
+  "outputs": {
+    "artifacts_dir": "app/outputs",
+    "registry_db": "app/database/dq_admin.db",
+    "logs_dir": "logs"
+  },
+  "examples": {
+    "inputs_dir": "input_examples",
+    "outputs_dir": "output_examples",
+    "input_count": 3,
+    "output_count": 4
+  },
+  "submission": {
+    "compass_integration": true,
+    "automated_data_loading": true,
+    "no_committed_secrets": true,
+    "cpu_only": true,
+    "logs_persisted": true
+  }
+}

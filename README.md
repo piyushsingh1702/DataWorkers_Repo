@@ -37,8 +37,16 @@ curl -X POST http://localhost:8000/run \
      -d '{"db_name":"mortgage_demo","snapshot_date":"2025-01-01"}'
 ```
 
-Sample request and response payloads live under [examples/](examples/)
-(3 input examples + 3 output examples, plus a bonus trend example).
+Sample payloads live under [input_examples/](input_examples/) and
+[output_examples/](output_examples/) (3 inputs + 3 outputs + a bonus trend
+example). Submission metadata is declared in [metadata.json](metadata.json).
+
+### Run with Docker (recommended)
+
+```bash
+docker build -t agentathon .
+docker run --rm -p 8000:8000 -e COMPASS_API_KEY=your-key agentathon
+```
 
 ### Submission constraints — compliance map
 
@@ -50,8 +58,10 @@ Sample request and response payloads live under [examples/](examples/)
 | Static data ≤ 500 MB | bundled sample DB regenerated on demand by `create_mortgage_database`; total repo well under cap |
 | No API keys committed | `.env` is gitignored; real keys go in `.env.local` (also gitignored) |
 | `.env.example` for organizers | [.env.example](.env.example) |
-| Logs saved | [app/logs/](app/logs/) (per-agent + access + app, rotating) |
-| ≥3 input + ≥3 output examples | [examples/](examples/) |
+| Logs saved | [logs/](logs/) (per-agent + access + app, rotating) |
+| ≥3 input + ≥3 output examples | [input_examples/](input_examples/), [output_examples/](output_examples/) |
+| `metadata.json` | [metadata.json](metadata.json) |
+| `Dockerfile` + `entrypoint.sh` | [Dockerfile](Dockerfile), [entrypoint.sh](entrypoint.sh) |
 | CPU only | pure-Python stack (FastAPI + sqlite3 + OpenAI HTTP client) |
 | Automated data loading | `POST /run` calls `setup_database=True` which invokes `create_mortgage_database` automatically |
 
@@ -127,22 +137,26 @@ agentathon/
 │   │   ├── llm_client.py             # Compass API wrapper (GPT-4.1 / GPT-5.1)
 │   │   ├── logging_config.py         # rotating file handlers per agent
 │   │   └── prompts.py
-│   ├── logs/                         # rotating log files (gitignored)
-│   │   ├── app.log
-│   │   ├── api_access.log
-│   │   └── agents/<agent>.log
 │   └── outputs/                      # generated JSON/MD artifacts
-├── examples/                         # sample request/response payloads
+├── input_examples/                   # ≥3 sample request payloads
 │   ├── input_1_run.json
 │   ├── input_2_pipeline_run.json
-│   ├── input_3_qa_ask.json
+│   └── input_3_qa_ask.json
+├── output_examples/                  # ≥3 sample response payloads (+ trend)
 │   ├── output_1_run.json
 │   ├── output_2_pipeline_run.json
 │   ├── output_3_qa_ask.json
 │   └── output_4_trend.json
-├── run.py                            # entry point: `python run.py` → :8000
+├── logs/                             # rotating log files (gitignored)
+│   ├── app.log
+│   ├── api_access.log
+│   └── agents/<agent>.log
+├── run.py                            # mandatory entry point → :8000
+├── Dockerfile                        # CPU-only container image
+├── entrypoint.sh                     # container entrypoint
+├── metadata.json                     # mandatory submission metadata
 ├── requirements.txt
-├── .env.example                      # template for organizers / CI
+├── .env.example                      # template for organizers / CI (no secrets)
 ├── .env.local                        # real secrets (gitignored, local only)
 └── PLAN.md
 ```

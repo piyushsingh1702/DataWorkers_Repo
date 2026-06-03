@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     database_dir: str = "app/database"
     default_db_name: str = "sample"
     output_dir: str = "app/outputs"
-    log_dir: str = "app/logs"
+    log_dir: str = "logs"
 
     # App
     log_level: str = "INFO"

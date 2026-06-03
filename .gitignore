@@ -13,5 +13,7 @@ app/outputs/**/*.json
 app/outputs/**/*.md
 app/logs/*.log
 app/logs/**/*.log
+logs/*.log
+logs/**/*.log
 .venv/
 venv/
