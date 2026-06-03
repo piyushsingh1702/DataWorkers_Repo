@@ -1,6 +1,0 @@
-2026-06-03 11:58:08,328 [INFO] app.agents.qa_agent: hello from qa_agent
-2026-06-03 12:46:49,656 [INFO] app.agents.qa_agent: Q&A on table 'loans', column 'interest_rate' (db='loan1', snapshot='2025-01-01'): any data issues here?
-2026-06-03 12:48:13,237 [INFO] app.agents.qa_agent: Q&A on table 'loans' (db='loan1', snapshot='2025-01-01'): any data issues here?
-2026-06-03 12:48:46,974 [INFO] app.agents.qa_agent: Q&A on table 'loans' (db='loan1', snapshot='2025-01-01'): which DQ dimension needs attention?
-2026-06-03 13:32:07,371 [INFO] app.agents.qa_agent: Q&A on table 'loans', column 'interest_rate' (db='loan1', snapshot='2025-02-01'): any data issues here?
-2026-06-03 13:32:58,824 [INFO] app.agents.qa_agent: Q&A on table 'loans' (db='loan1', snapshot='2025-02-01'): what are the major DQ concerns?

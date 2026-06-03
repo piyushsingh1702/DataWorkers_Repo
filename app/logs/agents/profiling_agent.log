@@ -1,7 +1,0 @@
-2026-06-03 11:58:08,327 [INFO] app.agents.profiling_agent: hello from profiling_agent
-2026-06-03 12:30:33,069 [INFO] app.agents.profiling_agent: Running data profiling on 'loan1' at: app\database\loan1.db (snapshot=2025-01-01)
-2026-06-03 12:31:11,082 [INFO] app.agents.profiling_agent: Data glossary persisted for db 'loan1' snapshot '2025-01-01'
-2026-06-03 13:17:20,783 [INFO] app.agents.profiling_agent: Running data profiling on 'loan1' at: app\database\loan1.db (snapshot=2025-01-01)
-2026-06-03 13:18:01,414 [INFO] app.agents.profiling_agent: Data glossary persisted for db 'loan1' snapshot '2025-01-01'
-2026-06-03 13:20:56,364 [INFO] app.agents.profiling_agent: Running data profiling on 'loan1' at: app\database\loan1.db (snapshot=2025-02-01)
-2026-06-03 13:21:37,544 [INFO] app.agents.profiling_agent: Data glossary persisted for db 'loan1' snapshot '2025-02-01'

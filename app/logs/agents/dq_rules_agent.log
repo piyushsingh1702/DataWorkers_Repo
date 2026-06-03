@@ -1,5 +1,0 @@
-2026-06-03 11:58:08,328 [INFO] app.agents.dq_rules_agent: hello from dq_rules_agent
-2026-06-03 12:40:26,447 [INFO] app.agents.dq_rules_agent: Generating DQ rules using AI agent (snapshot=2025-01-01)
-2026-06-03 12:41:44,371 [INFO] app.agents.dq_rules_agent: DQ rules persisted (56 rules) for db 'loan1' snapshot '2025-01-01'
-2026-06-03 13:26:22,987 [INFO] app.agents.dq_rules_agent: Generating DQ rules using AI agent (snapshot=2025-02-01)
-2026-06-03 13:27:28,071 [INFO] app.agents.dq_rules_agent: DQ rules persisted (58 rules) for db 'loan1' snapshot '2025-02-01'
