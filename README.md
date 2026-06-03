@@ -132,9 +132,18 @@ agentathon/
 │   │   ├── api_access.log
 │   │   └── agents/<agent>.log
 │   └── outputs/                      # generated JSON/MD artifacts
+├── examples/                         # sample request/response payloads
+│   ├── input_1_run.json
+│   ├── input_2_pipeline_run.json
+│   ├── input_3_qa_ask.json
+│   ├── output_1_run.json
+│   ├── output_2_pipeline_run.json
+│   ├── output_3_qa_ask.json
+│   └── output_4_trend.json
+├── run.py                            # entry point: `python run.py` → :8000
 ├── requirements.txt
-├── .env                              # committed template (placeholders only)
-├── .env.local                        # real secrets (gitignored)
+├── .env.example                      # template for organizers / CI
+├── .env.local                        # real secrets (gitignored, local only)
 └── PLAN.md
 ```
 
