@@ -1,0 +1,9 @@
+{
+  "extras": {
+    "description": "Quarterly mortgage portfolio review",
+    "properties": {
+      "owner": "data-governance-team",
+      "environment": "demo"
+    }
+  }
+}

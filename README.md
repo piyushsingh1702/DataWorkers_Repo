@@ -12,6 +12,51 @@ loading so you can analyse data quality drift over time.
 
 ---
 
+## Hackathon quickstart
+
+The platform is designed to satisfy the agentathon non-negotiable
+constraints: a single command boots a service on port 8000 that exposes a
+single `POST /run` endpoint, auto-loads the bundled sample dataset, and
+executes the entire agent pipeline end-to-end.
+
+```bash
+# 1. Install dependencies (CPU-only, no GPU required)
+pip install -r requirements.txt
+
+# 2. Provide your Compass API key. Either:
+#    a) export COMPASS_API_KEY=...   (preferred for CI / organizers)
+#    b) cp .env.example .env  and edit COMPASS_API_KEY=...
+#    c) for local dev: keep MODE=local and put the key in `.env.local`
+
+# 3. Boot the service on port 8000
+python run.py
+
+# 4. From another terminal, run the pipeline end-to-end (no manual setup)
+curl -X POST http://localhost:8000/run \
+     -H "Content-Type: application/json" \
+     -d '{"db_name":"mortgage_demo","snapshot_date":"2025-01-01"}'
+```
+
+Sample request and response payloads live under [examples/](examples/)
+(3 input examples + 3 output examples, plus a bonus trend example).
+
+### Submission constraints — compliance map
+
+| Constraint | Where it's met |
+|---|---|
+| Compass API integration | [app/utils/llm_client.py](app/utils/llm_client.py) (OpenAI client pointed at `https://api.core42.ai/v1`) |
+| `run.py` + `POST /run` on port 8000 | [run.py](run.py), [app/main.py](app/main.py) |
+| Runtime ≤ 15 min | discovery + profiling parallelised in [app/agents/orchestrator.py](app/agents/orchestrator.py) |
+| Static data ≤ 500 MB | bundled sample DB regenerated on demand by `create_mortgage_database`; total repo well under cap |
+| No API keys committed | `.env` is gitignored; real keys go in `.env.local` (also gitignored) |
+| `.env.example` for organizers | [.env.example](.env.example) |
+| Logs saved | [app/logs/](app/logs/) (per-agent + access + app, rotating) |
+| ≥3 input + ≥3 output examples | [examples/](examples/) |
+| CPU only | pure-Python stack (FastAPI + sqlite3 + OpenAI HTTP client) |
+| Automated data loading | `POST /run` calls `setup_database=True` which invokes `create_mortgage_database` automatically |
+
+---
+
 ## Features
 
 - **Snapshot-aware data model** — every fact table carries a `report_date`
@@ -19,8 +64,8 @@ loading so you can analyse data quality drift over time.
   endpoints always operate on a `(db_name, snapshot_date)` pair.
 - **Multi-agent pipeline** orchestrated end-to-end via `/api/v1/pipeline/run`:
   - `connection_agent` — connectivity smoke test
-  - `discovery_agent` — technical catalogue (tables, columns, FKs)
-  - `profiling_agent` — column-level profiling + business glossary
+  - `discovery_agent` — technical catalogue (tables, columns, FKs) **(runs in parallel with profiling)**
+  - `profiling_agent` — column-level profiling + business glossary **(runs in parallel with discovery)**
   - `classification_agent` — PII / sensitivity classification
   - `dq_rules_agent` — generate DQ rules from catalogue + glossary
   - `dq_executor_agent` — run rules against the snapshot, score by
@@ -165,9 +210,11 @@ Open Swagger UI:
      "snapshot_date": "2025-01-01"
    }
    ```
-   This runs discovery → profiling → classification → DQ rule generation →
-   DQ rule execution and persists every artifact under
-   `(db_name, snapshot_date, kind)`.
+   This runs connection → (discovery ∥ profiling) → classification →
+   DQ rule generation → DQ rule execution and persists every artifact under
+   `(db_name, snapshot_date, kind)`. Discovery and profiling are dispatched
+   on a `ThreadPoolExecutor` because they read directly from the source
+   database and have no inter-dependency.
 
 3. **Inspect results**:
    - `GET /api/v1/discovery/catalogue?db_name=mortgage_demo&snapshot_date=2025-01-01`

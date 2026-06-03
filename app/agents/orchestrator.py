@@ -1,6 +1,7 @@
 """Orchestrator - Coordinates the full pipeline execution."""
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from enum import Enum
 
@@ -103,17 +104,20 @@ def run_full_pipeline(
             raise RuntimeError(f"Connection failed: {conn_result['message']}")
         pipeline_state.steps_completed.append("connection_test")
 
-        # Step 3: Discovery
-        pipeline_state.current_step = "discovery"
-        logger.info("Pipeline Step 3: Running discovery")
-        catalogue = run_discovery(db_name, snapshot_date=snapshot_date)
-        pipeline_state.steps_completed.append("discovery")
-
-        # Step 4: Profiling
-        pipeline_state.current_step = "profiling"
-        logger.info("Pipeline Step 4: Running profiling")
-        glossary = run_profiling(db_name, snapshot_date=snapshot_date)
-        pipeline_state.steps_completed.append("profiling")
+        # Step 3 + 4: Discovery and Profiling run in parallel.
+        # They are fully independent (both read directly from the source DB,
+        # neither consumes the other's artifact). SQLite handles concurrent
+        # readers, and each agent opens its own connection.
+        pipeline_state.current_step = "discovery+profiling"
+        logger.info("Pipeline Step 3+4: Running discovery and profiling in parallel")
+        with ThreadPoolExecutor(max_workers=2, thread_name_prefix="pipeline") as ex:
+            discovery_future = ex.submit(run_discovery, db_name, snapshot_date=snapshot_date)
+            profiling_future = ex.submit(run_profiling, db_name, snapshot_date=snapshot_date)
+            # .result() re-raises any exception raised inside the worker thread.
+            catalogue = discovery_future.result()
+            pipeline_state.steps_completed.append("discovery")
+            glossary = profiling_future.result()
+            pipeline_state.steps_completed.append("profiling")
 
         # Step 5: Classification
         pipeline_state.current_step = "classification"

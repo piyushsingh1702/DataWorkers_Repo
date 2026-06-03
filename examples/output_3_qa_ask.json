@@ -1,0 +1,21 @@
+{
+  "db_name": "mortgage_demo",
+  "snapshot_date": "2025-01-01",
+  "table": "customers",
+  "column": "credit_score",
+  "answer": "The credit_score column ranges from 304 to 849 with a mean of approximately 706, which aligns with a typical US borrower distribution. About 5% of values fall below 580 (subprime band) and roughly 7% are NULL. The non-null distribution is healthy, but the 7% null rate breaches the Completeness rule for credit_score (target <= 5%) and should be addressed before downstream credit-risk modelling. No values fall outside the valid 300-850 range, so the Validity rule passes.",
+  "supporting_metrics": {
+    "min": 304,
+    "max": 849,
+    "mean": 706.0,
+    "null_percentage": 7.0,
+    "rule_violations": [
+      {
+        "rule_id": "DQ-CUST-005",
+        "dimension": "Completeness",
+        "status": "FAIL",
+        "details": "null_percentage 7.0 exceeds threshold 5.0"
+      }
+    ]
+  }
+}

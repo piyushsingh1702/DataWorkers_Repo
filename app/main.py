@@ -1,13 +1,16 @@
 """FastAPI application entry point for the Data Quality Research Assistant."""
 
 import logging
+from datetime import date
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse
+from pydantic import BaseModel, Field
 
+from app.agents.orchestrator import run_full_pipeline
 from app.api.routes import (
     database,
     connection,
@@ -113,6 +116,61 @@ def root():
         "version": "0.1.0",
         "status": "running",
     }
+
+
+# ---------------------------------------------------------------------------
+# Hackathon entry-point: POST /run
+# ---------------------------------------------------------------------------
+# Per the non-negotiable constraints, the platform must expose a single
+# /run endpoint on port 8000 that performs end-to-end execution with no
+# manual setup. It auto-loads sample data and runs the full pipeline.
+class RunRequest(BaseModel):
+    db_name: str | None = Field(
+        default="mortgage_demo",
+        description="Database name (sample SQLite file). Auto-created if missing.",
+    )
+    snapshot_date: str | None = Field(
+        default=None,
+        description=(
+            "Snapshot date in ISO YYYY-MM-DD. Defaults to today if omitted. "
+            "Same date replays in place; new dates append history."
+        ),
+    )
+    description: str | None = Field(default=None)
+
+
+@app.post("/run", tags=["Run"])
+def run_entrypoint(payload: RunRequest | None = None):
+    """End-to-end automated run.
+
+    Steps performed:
+      1. Load (or replay) the bundled mortgage sample dataset for the given
+         ``snapshot_date``. If none is provided, today's date is used.
+      2. Execute the full agentic pipeline: connection → (discovery ∥
+         profiling) → classification → DQ rule generation → DQ rule execution.
+      3. Persist all artifacts under ``(db_name, snapshot_date, kind)`` and
+         return a summary including the overall DQ score.
+
+    The endpoint requires no manual setup. ``COMPASS_API_KEY`` must be set
+    via environment variable or `.env` (see `.env.example`).
+    """
+    payload = payload or RunRequest()
+    snap = payload.snapshot_date or date.today().isoformat()
+    try:
+        # setup_database=True triggers automatic data loading inside the
+        # orchestrator, fulfilling the "no manual setup" constraint.
+        return run_full_pipeline(
+            db_name=payload.db_name,
+            snapshot_date=snap,
+            description=payload.description,
+            properties=None,
+            setup_database=True,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:  # pragma: no cover - defensive
+        logging.getLogger(__name__).exception("/run failed")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/v1/outputs", tags=["Outputs"])

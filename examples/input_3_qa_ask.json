@@ -1,0 +1,5 @@
+{
+  "table_name": "customers",
+  "column_name": "credit_score",
+  "question": "What is the distribution of credit scores and are there any data quality concerns?"
+}

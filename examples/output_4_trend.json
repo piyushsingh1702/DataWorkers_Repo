@@ -1,0 +1,45 @@
+{
+  "db_name": "mortgage_demo",
+  "snapshot_date_start": "2025-01-01",
+  "snapshot_date_end": "2025-04-01",
+  "snapshots_analysed": ["2025-01-01", "2025-04-01"],
+  "snapshots_missing_scores": [],
+  "overview": [
+    {"snapshot_date": "2025-01-01", "overall_score": 0.847, "rules_passed": 120, "rules_failed": 22, "total_rules": 142},
+    {"snapshot_date": "2025-04-01", "overall_score": 0.812, "rules_passed": 115, "rules_failed": 27, "total_rules": 142}
+  ],
+  "model": "gpt-5.1",
+  "analysis": {
+    "summary": "Overall DQ has slipped from 0.847 to 0.812 (-0.035) over the quarter, driven primarily by Completeness regressions in customers and payments and a small uptick in Timeliness violations on payments.",
+    "overall_trend": {
+      "direction": "declining",
+      "start_score": 0.847,
+      "end_score": 0.812,
+      "delta": -0.035,
+      "narrative": "Score moved from 0.847 to 0.812, a decline beyond the +/-0.02 stable band."
+    },
+    "key_findings": [
+      "Completeness fell from 0.91 to 0.86 due to higher null rates on customers.phone and customers.credit_score.",
+      "Payments table accumulated 38 additional Late/Missed records vs. the prior snapshot.",
+      "Validity remained stable at 0.94, so format/range integrity is holding."
+    ],
+    "risks": [
+      "If null rates on credit_score continue rising, downstream credit-risk models will degrade.",
+      "Late-payment growth signals potential portfolio stress that may breach SLAs next quarter."
+    ],
+    "recommendations": [
+      "Patch the upstream loader for customers.phone and customers.credit_score to enforce non-null capture.",
+      "Add a Completeness rule with threshold <= 5% on customers.credit_score and alert on breach.",
+      "Stand up a weekly trend run instead of quarterly to catch drift earlier."
+    ],
+    "dimension_trends": [
+      {"dimension": "Completeness", "direction": "declining", "start_score": 0.91, "end_score": 0.86, "delta": -0.05, "narrative": "Largest regression of the period."},
+      {"dimension": "Timeliness", "direction": "declining", "start_score": 0.83, "end_score": 0.78, "delta": -0.05, "narrative": "Payments lateness rose."},
+      {"dimension": "Validity", "direction": "stable", "start_score": 0.94, "end_score": 0.94, "delta": 0.0, "narrative": "Within stable band."}
+    ],
+    "table_trends": [
+      {"table_name": "customers", "direction": "declining", "start_score": 0.88, "end_score": 0.83, "delta": -0.05, "narrative": "Null rates climbed on phone and credit_score."},
+      {"table_name": "payments", "direction": "declining", "start_score": 0.81, "end_score": 0.74, "delta": -0.07, "narrative": "Late/Missed records grew 38%."}
+    ]
+  }
+}

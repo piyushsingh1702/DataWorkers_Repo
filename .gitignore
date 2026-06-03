@@ -1,10 +1,17 @@
 __pycache__/
 *.py[cod]
+# Generated SQLite databases (sample data is regenerated on demand by run.py)
 *.db
 # Local-only secrets (real API keys, etc.). Never commit.
+.env
 .env.local
 .env.*.local
+# Generated agent artifacts and logs
 app/outputs/*.json
 app/outputs/*.md
+app/outputs/**/*.json
+app/outputs/**/*.md
+app/logs/*.log
+app/logs/**/*.log
 .venv/
 venv/
