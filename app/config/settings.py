@@ -53,6 +53,12 @@ class Settings(BaseSettings):
     # App
     log_level: str = "INFO"
 
+    # Inter-agent completeness gate. Each agent's output is scored 0..1; if
+    # the score is below this threshold the orchestrator halts the pipeline
+    # and publishes the issues rather than feeding a degraded artifact into
+    # the next agent. Override via env var ``COMPLETENESS_THRESHOLD``.
+    completeness_threshold: float = 0.8
+
     class Config:
         # Files are evaluated left-to-right; later files override earlier ones.
         env_file = _resolve_env_files()

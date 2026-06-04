@@ -125,6 +125,11 @@ def configure_logging() -> None:
 
     _configure_agent_loggers(log_dir)
 
+    # Initialise the structured agent-interaction transcript so the file
+    # exists as soon as the app boots, even before the first pipeline run.
+    from app.utils import interaction_log  # local import to avoid cycles
+    interaction_log._ensure_handler()
+
 
 def install_request_logging(app: FastAPI) -> None:
     """Attach a middleware that logs every API request to ``api_access.log``."""

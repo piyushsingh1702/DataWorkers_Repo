@@ -41,13 +41,6 @@ Sample payloads live under [input_examples/](input_examples/) and
 [output_examples/](output_examples/) (3 inputs + 3 outputs + a bonus trend
 example). Submission metadata is declared in [metadata.json](metadata.json).
 
-### Run with Docker (recommended)
-
-```bash
-docker build -t agentathon .
-docker run --rm -p 8000:8000 -e COMPASS_API_KEY=your-key agentathon
-```
-
 ### Submission constraints — compliance map
 
 | Constraint | Where it's met |
@@ -61,7 +54,6 @@ docker run --rm -p 8000:8000 -e COMPASS_API_KEY=your-key agentathon
 | Logs saved | [logs/](logs/) (per-agent + access + app, rotating) |
 | ≥3 input + ≥3 output examples | [input_examples/](input_examples/), [output_examples/](output_examples/) |
 | `metadata.json` | [metadata.json](metadata.json) |
-| `Dockerfile` + `entrypoint.sh` | [Dockerfile](Dockerfile), [entrypoint.sh](entrypoint.sh) |
 | CPU only | pure-Python stack (FastAPI + sqlite3 + OpenAI HTTP client) |
 | Automated data loading | `POST /run` calls `setup_database=True` which invokes `create_mortgage_database` automatically |
 
@@ -82,6 +74,13 @@ docker run --rm -p 8000:8000 -e COMPASS_API_KEY=your-key agentathon
     dimension (Accuracy, Completeness, Consistency, Timeliness, Validity,
     Uniqueness)
   - `qa_agent` — natural-language Q&A scoped to a `(db, snapshot, table)`
+- **Inter-agent completeness gates** — between every pipeline stage the
+  orchestrator scores the upstream agent's artifact (0..1) with a
+  deterministic, rule-based check. If the score is below
+  `COMPLETENESS_THRESHOLD` (default `0.8`) the issues are published to the
+  agent logs and the pipeline halts before the next agent runs, so a
+  degraded artifact never feeds downstream. See
+  [app/utils/completeness.py](app/utils/completeness.py).
 - **Trend analysis** — `/api/v1/dq-scores/trend` summarises DQ-score movement
   across a date range using GPT-5.1 (overall, per-dimension, per-table,
   findings, risks, recommendations).
@@ -94,6 +93,10 @@ docker run --rm -p 8000:8000 -e COMPASS_API_KEY=your-key agentathon
   the snapshots that exist for the chosen database.
 - **Per-agent log files** under `app/logs/agents/<agent>.log`, plus a unified
   `app.log` and an `api_access.log` for every HTTP request.
+- **Agent-interaction transcript** at `logs/agents/interactions.log` — one
+  JSON line per inter-agent event (`handoff`, `gate`, `halt`) so the
+  conversation between agents is fully reconstructible. See
+  [Agent interactions](#agent-interactions).
 - **Two-mode secrets handling** — `.env` is the committed template with a
   `<COMPASS_API_KEY>` placeholder; real secrets live in a gitignored
   `.env.local` and are loaded automatically when `MODE=local`.
@@ -152,8 +155,6 @@ agentathon/
 │   ├── api_access.log
 │   └── agents/<agent>.log
 ├── run.py                            # mandatory entry point → :8000
-├── Dockerfile                        # CPU-only container image
-├── entrypoint.sh                     # container entrypoint
 ├── metadata.json                     # mandatory submission metadata
 ├── requirements.txt
 ├── .env.example                      # template for organizers / CI (no secrets)
@@ -299,6 +300,106 @@ python -m app.database.setup_mortgage_sample_db --db-name mortgage_demo --snapsh
 
 ## Architecture
 
+### Agent interactions
+
+The pipeline is a multi-agent conversation orchestrated by
+[`orchestrator.py`](app/agents/orchestrator.py). Each agent produces a
+typed artifact, the orchestrator gates it with a deterministic
+completeness check, and — only if the gate passes — hands it to the next
+agent.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant ORC as orchestrator
+    participant CON as connection_agent
+    participant DSC as discovery_agent
+    participant PRF as profiling_agent
+    participant CLS as classification_agent
+    participant RUL as dq_rules_agent
+    participant EXE as dq_executor_agent
+
+    ORC->>CON: test(db, snapshot)
+    CON-->>ORC: connection_ok
+    par parallel reads of source DB
+        ORC->>DSC: discover(db, snapshot)
+        DSC-->>ORC: technical_catalogue
+    and
+        ORC->>PRF: profile(db, snapshot)
+        PRF-->>ORC: data_glossary
+    end
+    Note over ORC: gate(discovery) + gate(profiling)
+    ORC->>CLS: classify(glossary)
+    CLS-->>ORC: classification_report
+    Note over ORC: gate(classification)
+    ORC->>RUL: generate(catalogue, glossary, classification)
+    RUL-->>ORC: dq_rules
+    Note over ORC: gate(dq_rules_generation)
+    ORC->>EXE: execute(dq_rules)
+    EXE-->>ORC: dq_scores
+    Note over ORC: gate(dq_execution)
+```
+
+#### Hand-offs (who passes what to whom)
+
+| From → To | Artifact | Why the receiver needs it |
+|---|---|---|
+| `connection_agent` → `discovery_agent` + `profiling_agent` | `connection_ok` | Confirms the snapshot is queryable before parallel reads start |
+| `discovery_agent` → `dq_rules_agent` | `technical_catalogue` | Tables, columns, FKs, PKs the rules will be written against |
+| `profiling_agent` → `classification_agent` | `data_glossary` | Profile + business description per column drives PII / sensitivity classification |
+| `classification_agent` → `dq_rules_agent` | `classification_report` | CDE flags & sensitivity tighten rule severity and coverage |
+| `dq_rules_agent` → `dq_executor_agent` | `dq_rules` | SQL rules to run against the snapshot |
+| `dq_executor_agent` → `orchestrator` | `dq_scores` | Final scoring report returned to the API client |
+
+#### Interaction transcript: `logs/agents/interactions.log`
+
+Every hand-off and every completeness gate is written as a single JSON
+line so the file is both grep-friendly and machine-parseable. The schema:
+
+| Event     | Key fields |
+|-----------|------------|
+| `handoff` | `sender`, `receiver`, `artifact`, `summary` (headline metrics), `db_name`, `snapshot_date` |
+| `gate`    | `stage`, `score`, `threshold`, `passed`, `issues`, `warnings` |
+| `halt`    | `blocked_at`, `reason` |
+
+Example (one full successful pipeline run, abbreviated):
+
+```json
+{"event":"handoff","sender":"connection_agent","receiver":"discovery_agent+profiling_agent","artifact":"connection_ok","db_name":"mortgage_demo","snapshot_date":"2025-01-01","summary":{"status":"success"}}
+{"event":"handoff","sender":"discovery_agent","receiver":"dq_rules_agent","artifact":"technical_catalogue","summary":{"tables":8,"columns":62}}
+{"event":"handoff","sender":"profiling_agent","receiver":"classification_agent","artifact":"data_glossary","summary":{"entries":62}}
+{"event":"gate","stage":"discovery","score":1.0,"threshold":0.8,"passed":true,"issues":[],"warnings":[]}
+{"event":"gate","stage":"profiling","score":1.0,"threshold":0.8,"passed":true}
+{"event":"handoff","sender":"classification_agent","receiver":"dq_rules_agent","artifact":"classification_report","summary":{"total_columns":62,"cde_count":13,"cde_percentage":20.97}}
+{"event":"gate","stage":"classification","score":1.0,"threshold":0.8,"passed":true}
+{"event":"handoff","sender":"dq_rules_agent","receiver":"dq_executor_agent","artifact":"dq_rules","summary":{"total_rules":42,"by_dimension":{"Validity":12,"Completeness":10,"Uniqueness":6,"Consistency":8,"Accuracy":6}}}
+{"event":"gate","stage":"dq_rules_generation","score":1.0,"threshold":0.8,"passed":true}
+{"event":"handoff","sender":"dq_executor_agent","receiver":"orchestrator","artifact":"dq_scores","summary":{"overall_score":91.4,"rules_passed":38,"rules_failed":4}}
+{"event":"gate","stage":"dq_execution","score":1.0,"threshold":0.8,"passed":true}
+```
+
+When a gate fails the transcript ends with a `halt` event and downstream
+agents are never invoked:
+
+```json
+{"event":"gate","stage":"profiling","score":0.50,"threshold":0.8,"passed":false,"issues":["5 catalogue columns are missing glossary entries"]}
+{"event":"halt","blocked_at":"profiling","reason":"completeness_score_0.50_below_0.80"}
+```
+
+Useful one-liners:
+
+```powershell
+# Tail the live conversation
+Get-Content logs/agents/interactions.log -Tail 50 -Wait
+
+# Filter to one snapshot's hand-offs
+Select-String -Path logs/agents/interactions.log -Pattern '"snapshot_date": "2025-01-01"' | Select-String '"event": "handoff"'
+```
+
+The same hand-off and gate events also surface in each agent's own log
+under `logs/agents/<agent>.log`, so you can read either the unified
+transcript or each agent's first-person log.
+
 ### Snapshot semantics
 
 Every data table carries `report_date TEXT NOT NULL`. Natural-key
@@ -326,6 +427,34 @@ A central `app/database/dq_admin.db` registry tracks:
   dq_rules, dq_scores) with **UPSERT** so re-runs replace, never duplicate
 - `dq_admin_dq_report(db_name, snapshot_date, markdown)` — markdown report
 
+### Inter-agent completeness gates
+
+Before the orchestrator hands an upstream agent's output to the next
+agent, it runs [`check_completeness`](app/utils/completeness.py) on the
+artifact. The check is deterministic (no LLM cost) and stage-specific:
+
+| Stage | Representative checks |
+|---|---|
+| `discovery` | tables > 0, count fields match, every table has columns, FKs reference known tables (PK/description coverage as warnings) |
+| `profiling` | 1:1 column coverage with the catalogue, profile populated, placeholder-description rate as warning |
+| `classification` | 1:1 coverage with the glossary, labels in {`Public`, `Internal`, `Confidential`, `Restricted`}, at least one CDE flagged |
+| `dq_rules_generation` | every rule has non-empty SQL, every catalogue table covered, every CDE column covered, every rule contains the snapshot filter `report_date = '<snapshot_date>'` |
+| `dq_execution` | rule-count parity with the rule set, table & dimension scores populated |
+
+Each check returns a `CompletenessReport` with `score`, `passed`,
+structured `issues`, `warnings`, and `metrics`. Reports are appended to
+the pipeline state and returned in the `/run` and `/pipeline/run`
+responses under `completeness_reports`.
+
+When a gate fails the orchestrator:
+
+1. logs `Pipeline halted: '<stage>' completeness X.XX < threshold Y.YY. Downstream agents will not run.` plus each issue,
+2. marks the pipeline state `FAILED` with `blocked_at=<stage>`,
+3. returns `{"status": "halted", "reason": "completeness_check_failed", "blocked_at": ..., "completeness_reports": [...]}` instead of crashing.
+
+The threshold is configurable via the `COMPLETENESS_THRESHOLD`
+environment variable (or `completeness_threshold` in `app/config/settings.py`).
+
 ### LLM models
 
 - **GPT-4.1** — default for catalogue, glossary, classification, rule
@@ -344,6 +473,9 @@ Configured in `app/utils/llm_client.py`; switch via `use_complex_model=True`.
 - `app/logs/api_access.log` — one line per HTTP request
 - `app/logs/agents/<agent>.log` — per-agent file (records also propagate
   to `app.log` for a unified view)
+- `app/logs/agents/interactions.log` — structured JSON transcript of
+  every agent-to-agent hand-off, completeness gate, and pipeline halt.
+  See [Agent interactions](#agent-interactions) for the event schema.
 
 Set `LOG_LEVEL` in your `.env` / `.env.local` to control verbosity.
 
