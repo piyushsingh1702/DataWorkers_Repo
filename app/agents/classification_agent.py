@@ -86,7 +86,9 @@ def _classify_table(table_name: str, entries) -> list[ColumnClassification]:
     )
 
     try:
-        result = call_llm_json(CLASSIFICATION_SYSTEM_PROMPT, user_prompt)
+        # Sensitivity tiering + CDE identification is reasoning-heavy:
+        # use the stronger model.
+        result = call_llm_json(CLASSIFICATION_SYSTEM_PROMPT, user_prompt, use_complex_model=True)
         classifications_list = result.get("classifications", []) if isinstance(result, dict) else result
         llm_classifications = {c["column_name"]: c for c in classifications_list}
     except Exception as e:

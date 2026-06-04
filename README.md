@@ -457,9 +457,11 @@ environment variable (or `completeness_threshold` in `app/config/settings.py`).
 
 ### LLM models
 
-- **GPT-4.1** — default for catalogue, glossary, classification, rule
-  generation, and Q&A.
-- **GPT-5.1** — used for complex reasoning: `/dq-scores/trend`.
+- **GPT-4.1** — default for catalogue enrichment, glossary, and Q&A.
+- **GPT-5.1** — used for the most reasoning-heavy steps:
+  - Classification + CDE identification ([app/agents/classification_agent.py](app/agents/classification_agent.py))
+  - DQ rule generation ([app/agents/dq_rules_agent.py](app/agents/dq_rules_agent.py))
+  - Trend analysis (`GET /api/v1/dq-scores/trend`)
 
 Configured in `app/utils/llm_client.py`; switch via `use_complex_model=True`.
 
