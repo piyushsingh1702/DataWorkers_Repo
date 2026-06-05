@@ -1,0 +1,25 @@
+{
+  "status": "success",
+  "db_name": "loan1",
+  "snapshot_date": "2025-01-01",
+  "message": "Overrode classification output for 1 entry",
+  "updated_entries": [
+    {"table": "loans", "column": "interest_rate"}
+  ],
+  "applied_updates": {
+    "classification": "Confidential",
+    "is_cde": true,
+    "classification_rationale": "Bank policy upgraded pricing data to Confidential after the FY24 fair-lending review.",
+    "cde_rationale": "Direct input to HMDA disparate-impact testing and rate-disclosure obligations."
+  },
+  "summary": {
+    "classification_summary": {
+      "Public": 6,
+      "Internal": 31,
+      "Confidential": 20,
+      "Restricted": 5
+    },
+    "cde_count": 19,
+    "cde_percentage": 30.65
+  }
+}

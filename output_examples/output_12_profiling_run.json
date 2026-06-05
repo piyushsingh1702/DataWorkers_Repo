@@ -1,0 +1,11 @@
+{
+  "status": "success",
+  "db_name": "loan1",
+  "snapshot_date": "2025-01-01",
+  "message": "Profiled 62 columns",
+  "summary": {
+    "total_entries": 62,
+    "pii_columns": 9,
+    "enumeration_columns": 7
+  }
+}

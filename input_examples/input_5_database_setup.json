@@ -1,0 +1,10 @@
+{
+  "db_name": "loan1",
+  "snapshot_date": "2025-01-01",
+  "description": "January 2025 mortgage book snapshot for loan1",
+  "properties": {
+    "owner": "data-governance-team",
+    "environment": "demo",
+    "source_system": "core-banking"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "extras": {
+    "description": "January 2025 pipeline run for loan1",
+    "properties": {
+      "owner": "data-governance-team",
+      "environment": "demo",
+      "trigger": "manual"
+    }
+  }
+}

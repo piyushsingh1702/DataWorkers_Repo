@@ -1,0 +1,8 @@
+{
+  "status": "success",
+  "message": "Snapshot '2025-01-01' loaded.",
+  "db_name": "loan1",
+  "snapshot_date": "2025-01-01",
+  "path": "app/database/loan1.db",
+  "snapshots": ["2025-01-01"]
+}

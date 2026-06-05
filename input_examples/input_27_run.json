@@ -1,0 +1,5 @@
+{
+  "db_name": "loan1",
+  "snapshot_date": "2025-01-01",
+  "description": "End-to-end POST /run for loan1 - loads data and executes the full pipeline."
+}

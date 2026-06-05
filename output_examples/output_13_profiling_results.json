@@ -1,0 +1,84 @@
+{
+  "database_name": "loan1",
+  "total_entries": 62,
+  "generated_at": "2025-01-01T10:13:55.812044+00:00",
+  "entries": [
+    {
+      "table_name": "customers",
+      "column_name": "credit_score",
+      "business_description": "FICO-style creditworthiness score (300-850). Drives pricing tiers, approval thresholds, and capital-reserve calculations. Considered a Critical Data Element for risk reporting.",
+      "data_domain": "Risk / Underwriting",
+      "is_enumeration": false,
+      "enum_values": [],
+      "is_pii": false,
+      "profile": {
+        "table_name": "customers",
+        "column_name": "credit_score",
+        "data_type": "INTEGER",
+        "total_count": 248,
+        "null_count": 7,
+        "null_percentage": 2.82,
+        "distinct_count": 198,
+        "min_value": 540,
+        "max_value": 829,
+        "mean_value": 712.4,
+        "median_value": 718,
+        "std_dev": 64.1,
+        "sample_values": ["712", "684", "755", "603", "789"],
+        "top_values": [
+          {"value": "720", "count": 4},
+          {"value": "705", "count": 4},
+          {"value": "740", "count": 3}
+        ]
+      }
+    },
+    {
+      "table_name": "customers",
+      "column_name": "date_of_birth",
+      "business_description": "Borrower date of birth in YYYY-MM-DD. Direct identifier under GDPR Art. 9 / DPDP §3 — must be tokenized in any downstream feed.",
+      "data_domain": "Customer / PII",
+      "is_enumeration": false,
+      "enum_values": [],
+      "is_pii": true,
+      "profile": {
+        "table_name": "customers",
+        "column_name": "date_of_birth",
+        "data_type": "TEXT",
+        "total_count": 248,
+        "null_count": 0,
+        "null_percentage": 0.0,
+        "distinct_count": 247,
+        "min_length": 10,
+        "max_length": 10,
+        "avg_length": 10.0,
+        "sample_values": ["1978-04-12", "1982-09-30", "1965-11-02"]
+      }
+    },
+    {
+      "table_name": "loans",
+      "column_name": "loan_type",
+      "business_description": "Product code identifying the mortgage program. Drives pricing curves, regulatory capital weights, and HMDA reporting buckets.",
+      "data_domain": "Product",
+      "is_enumeration": true,
+      "enum_values": ["Conventional", "FHA", "VA", "Jumbo"],
+      "is_pii": false,
+      "profile": {
+        "table_name": "loans",
+        "column_name": "loan_type",
+        "data_type": "TEXT",
+        "total_count": 261,
+        "null_count": 0,
+        "null_percentage": 0.0,
+        "distinct_count": 4,
+        "sample_values": ["Conventional", "FHA", "VA", "Jumbo"],
+        "top_values": [
+          {"value": "Conventional", "count": 168},
+          {"value": "FHA", "count": 52},
+          {"value": "Jumbo", "count": 24},
+          {"value": "VA", "count": 17}
+        ]
+      }
+    }
+  ],
+  "_truncated": "59 additional entries omitted in this example for brevity"
+}

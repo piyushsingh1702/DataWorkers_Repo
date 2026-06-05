@@ -1,0 +1,26 @@
+{
+  "db_name": "loan1",
+  "snapshot_date": "2025-01-01",
+  "table": "loans",
+  "column": "interest_rate",
+  "answer": "Yes — 2 loans in the 2025-01-01 snapshot of `loan1` carry interest rates outside the 2.0%-18.0% policy band: one at 0.85% (loan_id 10247) and one at 19.40% (loan_id 10193). Both originated through manual underwriter overrides without a policy-exception attribute, so they're flagged by rule DQ-LOAN-001 (Validity, severity=high). Business risk is two-fold: (1) HMDA disparate-impact testing is skewed by the artificially low rate, and (2) the high-rate loan may breach state-level rate-cap regulations and trigger consumer-redress exposure. Recommend immediate review by the pricing-exception committee and a structural fix that requires capture of an exception_code at booking time.",
+  "supporting_metrics": {
+    "min": 0.85,
+    "max": 19.4,
+    "mean": 6.38,
+    "median": 6.25,
+    "out_of_band_count": 2,
+    "out_of_band_examples": [
+      {"loan_id": 10247, "interest_rate": 0.85},
+      {"loan_id": 10193, "interest_rate": 19.4}
+    ],
+    "rule_violations": [
+      {
+        "rule_id": "DQ-LOAN-001",
+        "dimension": "Validity",
+        "status": "FAIL",
+        "details": "2 of 261 loans have interest_rate outside [2.0, 18.0]"
+      }
+    ]
+  }
+}

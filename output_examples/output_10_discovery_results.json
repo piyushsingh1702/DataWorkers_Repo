@@ -1,0 +1,71 @@
+{
+  "database_name": "loan1",
+  "total_tables": 8,
+  "total_columns": 62,
+  "generated_at": "2025-01-01T10:12:43.221045+00:00",
+  "tables": [
+    {
+      "name": "customers",
+      "row_count": 248,
+      "primary_keys": ["customer_id"],
+      "foreign_keys": [
+        {"column": "branch_id", "references_table": "branches", "references_column": "branch_id"}
+      ],
+      "description": "Borrower master records including PII, demographics, income and credit-bureau scores. Each customer is anchored to a home branch.",
+      "columns": [
+        {"name": "customer_id", "data_type": "INTEGER", "nullable": false, "is_primary_key": true, "is_unique": true, "description": "Surrogate primary key for a borrower."},
+        {"name": "first_name", "data_type": "TEXT", "nullable": false, "is_primary_key": false, "is_unique": false, "description": "Borrower's legal first name. PII."},
+        {"name": "last_name", "data_type": "TEXT", "nullable": false, "is_primary_key": false, "is_unique": false, "description": "Borrower's legal last name. PII."},
+        {"name": "date_of_birth", "data_type": "TEXT", "nullable": false, "is_primary_key": false, "is_unique": false, "description": "Date of birth (YYYY-MM-DD). Direct identifier under GDPR/DPDP."},
+        {"name": "gender", "data_type": "TEXT", "nullable": true, "is_primary_key": false, "is_unique": false, "description": "Self-declared gender (M/F/O)."},
+        {"name": "annual_income", "data_type": "REAL", "nullable": true, "is_primary_key": false, "is_unique": false, "description": "Reported gross annual income in USD; key debt-to-income input."},
+        {"name": "credit_score", "data_type": "INTEGER", "nullable": true, "is_primary_key": false, "is_unique": false, "description": "FICO-style creditworthiness score (300-850); drives pricing tiers and reserve calculations."},
+        {"name": "branch_id", "data_type": "INTEGER", "nullable": false, "is_primary_key": false, "is_unique": false, "description": "FK to branches.branch_id; the originating branch."},
+        {"name": "report_date", "data_type": "TEXT", "nullable": false, "is_primary_key": false, "is_unique": false, "description": "Snapshot date this row belongs to."}
+      ]
+    },
+    {
+      "name": "loans",
+      "row_count": 261,
+      "primary_keys": ["loan_id"],
+      "foreign_keys": [
+        {"column": "customer_id", "references_table": "customers", "references_column": "customer_id"},
+        {"column": "application_id", "references_table": "applications", "references_column": "application_id"}
+      ],
+      "description": "Booked mortgage loans (after approval). Carries economic terms — principal, rate, term, status — and traces back to the originating application.",
+      "columns": [
+        {"name": "loan_id", "data_type": "INTEGER", "nullable": false, "is_primary_key": true, "is_unique": true, "description": "Surrogate primary key for a booked loan."},
+        {"name": "customer_id", "data_type": "INTEGER", "nullable": false, "is_primary_key": false, "is_unique": false, "description": "FK to customers.customer_id; the borrower."},
+        {"name": "application_id", "data_type": "INTEGER", "nullable": false, "is_primary_key": false, "is_unique": false, "description": "FK to applications.application_id; the originating application."},
+        {"name": "loan_type", "data_type": "TEXT", "nullable": false, "is_primary_key": false, "is_unique": false, "description": "Product code, e.g. 'Conventional', 'FHA', 'VA', 'Jumbo'."},
+        {"name": "principal_amount", "data_type": "REAL", "nullable": false, "is_primary_key": false, "is_unique": false, "description": "Original principal disbursed in USD."},
+        {"name": "interest_rate", "data_type": "REAL", "nullable": false, "is_primary_key": false, "is_unique": false, "description": "Annual interest rate in percent."},
+        {"name": "term_months", "data_type": "INTEGER", "nullable": false, "is_primary_key": false, "is_unique": false, "description": "Loan tenor in months (e.g., 360 for 30-year)."},
+        {"name": "status", "data_type": "TEXT", "nullable": false, "is_primary_key": false, "is_unique": false, "description": "Lifecycle state: 'Active', 'Paid Off', 'Default', 'Foreclosed'."},
+        {"name": "origination_date", "data_type": "TEXT", "nullable": false, "is_primary_key": false, "is_unique": false, "description": "Date the loan was funded."},
+        {"name": "report_date", "data_type": "TEXT", "nullable": false, "is_primary_key": false, "is_unique": false, "description": "Snapshot date this row belongs to."}
+      ]
+    },
+    {
+      "name": "applications",
+      "row_count": 401,
+      "primary_keys": ["application_id"],
+      "foreign_keys": [
+        {"column": "customer_id", "references_table": "customers", "references_column": "customer_id"},
+        {"column": "officer_id", "references_table": "loan_officers", "references_column": "officer_id"}
+      ],
+      "description": "Loan applications including decisioning data — requested amount, decision, decision_date, denial_reason. Not every application becomes a booked loan.",
+      "columns": [
+        {"name": "application_id", "data_type": "INTEGER", "nullable": false, "is_primary_key": true, "is_unique": true, "description": "Surrogate primary key for an application."},
+        {"name": "customer_id", "data_type": "INTEGER", "nullable": false, "is_primary_key": false, "is_unique": false, "description": "FK to customers.customer_id."},
+        {"name": "officer_id", "data_type": "INTEGER", "nullable": false, "is_primary_key": false, "is_unique": false, "description": "FK to loan_officers.officer_id."},
+        {"name": "requested_amount", "data_type": "REAL", "nullable": false, "is_primary_key": false, "is_unique": false, "description": "Amount requested by the borrower."},
+        {"name": "application_date", "data_type": "TEXT", "nullable": false, "is_primary_key": false, "is_unique": false, "description": "Date the application was submitted."},
+        {"name": "decision", "data_type": "TEXT", "nullable": false, "is_primary_key": false, "is_unique": false, "description": "Outcome: 'Approved', 'Denied', 'Withdrawn', 'Pending'."},
+        {"name": "decision_date", "data_type": "TEXT", "nullable": true, "is_primary_key": false, "is_unique": false, "description": "Date a decision was rendered. Null while Pending."},
+        {"name": "denial_reason", "data_type": "TEXT", "nullable": true, "is_primary_key": false, "is_unique": false, "description": "Free-text denial reason; populated only when decision='Denied'."}
+      ]
+    }
+  ],
+  "_truncated": "branches, loan_officers, collaterals, payments, credit_history omitted in this example for brevity"
+}

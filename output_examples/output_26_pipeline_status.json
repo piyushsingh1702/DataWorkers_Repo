@@ -1,0 +1,23 @@
+{
+  "last_run": {
+    "db_name": "loan1",
+    "snapshot_date": "2025-01-01",
+    "status": "completed",
+    "started_at": "2025-01-01T10:11:30.118420+00:00",
+    "finished_at": "2025-01-01T10:16:42.554190+00:00",
+    "duration_seconds": 312.4,
+    "steps_completed": [
+      "connection_test",
+      "discovery",
+      "profiling",
+      "classification",
+      "dq_rules_generation",
+      "dq_execution"
+    ],
+    "overall_dq_score": 0.847
+  },
+  "current": {
+    "running": false,
+    "current_step": null
+  }
+}

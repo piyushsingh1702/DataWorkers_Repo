@@ -1,0 +1,72 @@
+{
+  "database_name": "loan1",
+  "total_columns": 62,
+  "cde_count": 18,
+  "cde_percentage": 29.03,
+  "classification_summary": {
+    "Public": 6,
+    "Internal": 32,
+    "Confidential": 19,
+    "Restricted": 5
+  },
+  "generated_at": "2025-01-01T10:14:31.117090+00:00",
+  "classifications": [
+    {
+      "table_name": "customers",
+      "column_name": "date_of_birth",
+      "classification": "Restricted",
+      "is_cde": true,
+      "cde_rationale": "Direct identifier required for KYC and credit-bureau reconciliation; mis-handling triggers GDPR/DPDP exposure.",
+      "classification_rationale": "Direct PII identifier; combined with name uniquely re-identifies a borrower."
+    },
+    {
+      "table_name": "customers",
+      "column_name": "annual_income",
+      "classification": "Confidential",
+      "is_cde": true,
+      "cde_rationale": "Foundational input to debt-to-income, HMDA reporting and pricing decisions.",
+      "classification_rationale": "Sensitive financial attribute; disclosure could harm the borrower."
+    },
+    {
+      "table_name": "customers",
+      "column_name": "credit_score",
+      "classification": "Confidential",
+      "is_cde": true,
+      "cde_rationale": "Drives risk-weighting, reserve, and approval gates; CCAR-relevant.",
+      "classification_rationale": "Bureau-derived score is regulated under FCRA-equivalent regimes."
+    },
+    {
+      "table_name": "loans",
+      "column_name": "principal_amount",
+      "classification": "Confidential",
+      "is_cde": true,
+      "cde_rationale": "Drives portfolio exposure metrics, RWA and concentration limits.",
+      "classification_rationale": "Material non-public financial value tied to the borrower."
+    },
+    {
+      "table_name": "loans",
+      "column_name": "interest_rate",
+      "classification": "Internal",
+      "is_cde": true,
+      "cde_rationale": "Pricing fairness and HMDA disparate-impact testing rely on accurate rate capture.",
+      "classification_rationale": "Pricing data; sensitive but not personally identifying."
+    },
+    {
+      "table_name": "loans",
+      "column_name": "loan_id",
+      "classification": "Internal",
+      "is_cde": false,
+      "cde_rationale": "",
+      "classification_rationale": "System-generated surrogate; non-sensitive but not public."
+    },
+    {
+      "table_name": "branches",
+      "column_name": "branch_name",
+      "classification": "Public",
+      "is_cde": false,
+      "cde_rationale": "",
+      "classification_rationale": "Branch names are published in the corporate directory."
+    }
+  ],
+  "_truncated": "55 additional classifications omitted in this example for brevity"
+}

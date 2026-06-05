@@ -1,0 +1,5 @@
+{
+  "_method": "GET",
+  "_endpoint": "/api/v1/pipeline/status",
+  "_note": "GET endpoint takes no body or query params."
+}

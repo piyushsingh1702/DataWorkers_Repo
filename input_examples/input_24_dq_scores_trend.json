@@ -1,0 +1,9 @@
+{
+  "_method": "GET",
+  "_endpoint": "/api/v1/dq-scores/trend",
+  "_query": {
+    "db_name": "loan1",
+    "snapshot_date_start": "2025-01-01",
+    "snapshot_date_end": "2025-04-01"
+  }
+}

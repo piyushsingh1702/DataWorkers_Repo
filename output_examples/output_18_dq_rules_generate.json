@@ -1,0 +1,21 @@
+{
+  "status": "success",
+  "db_name": "loan1",
+  "snapshot_date": "2025-01-01",
+  "message": "Generated 142 DQ rules",
+  "summary": {
+    "total_rules": 142,
+    "rules_by_dimension": {
+      "Accuracy": 12,
+      "Completeness": 38,
+      "Consistency": 22,
+      "Timeliness": 9,
+      "Validity": 47,
+      "Uniqueness": 14
+    },
+    "rules_by_type": {
+      "technical": 96,
+      "business": 46
+    }
+  }
+}

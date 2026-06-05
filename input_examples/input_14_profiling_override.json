@@ -1,0 +1,11 @@
+{
+  "db_name": "loan1",
+  "snapshot_date": "2025-01-01",
+  "table_name": "customers",
+  "column_name": "annual_income",
+  "updates": {
+    "business_description": "Reported gross annual household income in USD as declared on the application. Source-of-truth for debt-to-income (DTI) calculations and HMDA reporting; treated as Confidential per bank policy.",
+    "data_domain": "Customer / Financial",
+    "is_pii": true
+  }
+}

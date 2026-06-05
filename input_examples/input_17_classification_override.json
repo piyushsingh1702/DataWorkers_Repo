@@ -1,0 +1,12 @@
+{
+  "db_name": "loan1",
+  "snapshot_date": "2025-01-01",
+  "table_name": "loans",
+  "column_name": "interest_rate",
+  "updates": {
+    "classification": "Confidential",
+    "is_cde": true,
+    "classification_rationale": "Bank policy upgraded pricing data to Confidential after the FY24 fair-lending review.",
+    "cde_rationale": "Direct input to HMDA disparate-impact testing and rate-disclosure obligations."
+  }
+}

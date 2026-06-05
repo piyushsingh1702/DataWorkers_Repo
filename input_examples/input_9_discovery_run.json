@@ -1,0 +1,8 @@
+{
+  "_method": "POST",
+  "_endpoint": "/api/v1/discovery/run",
+  "_query": {
+    "db_name": "loan1",
+    "snapshot_date": "2025-01-01"
+  }
+}

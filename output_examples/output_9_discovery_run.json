@@ -1,0 +1,20 @@
+{
+  "status": "success",
+  "db_name": "loan1",
+  "snapshot_date": "2025-01-01",
+  "message": "Discovered 8 tables, 62 columns",
+  "summary": {
+    "total_tables": 8,
+    "total_columns": 62,
+    "tables": [
+      "branches",
+      "loan_officers",
+      "customers",
+      "applications",
+      "loans",
+      "collaterals",
+      "payments",
+      "credit_history"
+    ]
+  }
+}

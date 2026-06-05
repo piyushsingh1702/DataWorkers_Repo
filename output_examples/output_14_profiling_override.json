@@ -1,0 +1,14 @@
+{
+  "status": "success",
+  "db_name": "loan1",
+  "snapshot_date": "2025-01-01",
+  "message": "Overrode profiling output for 1 entry",
+  "updated_entries": [
+    {"table": "customers", "column": "annual_income"}
+  ],
+  "applied_updates": {
+    "business_description": "Reported gross annual household income in USD as declared on the application. Source-of-truth for debt-to-income (DTI) calculations and HMDA reporting; treated as Confidential per bank policy.",
+    "data_domain": "Customer / Financial",
+    "is_pii": true
+  }
+}

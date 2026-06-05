@@ -1,0 +1,72 @@
+{
+  "database_name": "loan1",
+  "total_rules": 142,
+  "rules_by_dimension": {
+    "Accuracy": 12,
+    "Completeness": 38,
+    "Consistency": 22,
+    "Timeliness": 9,
+    "Validity": 47,
+    "Uniqueness": 14
+  },
+  "rules_by_type": {
+    "technical": 96,
+    "business": 46
+  },
+  "generated_at": "2025-01-01T10:15:08.554211+00:00",
+  "rules": [
+    {
+      "rule_id": "DQ-LOAN-001",
+      "rule_name": "loans.interest_rate range check",
+      "dimension": "Validity",
+      "table_name": "loans",
+      "column_name": "interest_rate",
+      "rule_type": "business",
+      "description": "Mortgage interest rate must fall within the policy band of 2.0% to 18.0%. Values outside this band indicate a data-entry error or a policy breach.",
+      "sql_query": "SELECT COUNT(*) FROM loans WHERE report_date = :snapshot_date AND (interest_rate < 2.0 OR interest_rate > 18.0)",
+      "threshold": 0.99,
+      "severity": "high",
+      "cde_linked": true
+    },
+    {
+      "rule_id": "DQ-APP-007",
+      "rule_name": "applications.decision_date >= application_date",
+      "dimension": "Consistency",
+      "table_name": "applications",
+      "column_name": "decision_date",
+      "rule_type": "business",
+      "description": "A decision_date cannot precede the application_date — a referential time-order invariant.",
+      "sql_query": "SELECT COUNT(*) FROM applications WHERE report_date = :snapshot_date AND decision_date IS NOT NULL AND decision_date < application_date",
+      "threshold": 1.0,
+      "severity": "critical",
+      "cde_linked": true
+    },
+    {
+      "rule_id": "DQ-LOAN-002",
+      "rule_name": "loans.loan_id uniqueness",
+      "dimension": "Uniqueness",
+      "table_name": "loans",
+      "column_name": "loan_id",
+      "rule_type": "technical",
+      "description": "loan_id must be unique within a snapshot.",
+      "sql_query": "SELECT COUNT(*) - COUNT(DISTINCT loan_id) FROM loans WHERE report_date = :snapshot_date",
+      "threshold": 1.0,
+      "severity": "critical",
+      "cde_linked": false
+    },
+    {
+      "rule_id": "DQ-CUST-005",
+      "rule_name": "customers.credit_score completeness",
+      "dimension": "Completeness",
+      "table_name": "customers",
+      "column_name": "credit_score",
+      "rule_type": "business",
+      "description": "credit_score is a critical data element for underwriting and capital reserves; null rate must remain at or below 5%.",
+      "sql_query": "SELECT 100.0 * SUM(CASE WHEN credit_score IS NULL THEN 1 ELSE 0 END) / COUNT(*) FROM customers WHERE report_date = :snapshot_date",
+      "threshold": 0.95,
+      "severity": "high",
+      "cde_linked": true
+    }
+  ],
+  "_truncated": "138 additional rules omitted in this example for brevity"
+}

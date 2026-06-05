@@ -1,0 +1,18 @@
+{
+  "status": "completed",
+  "db_name": "loan1",
+  "snapshot_date": "2025-01-01",
+  "overall_dq_score": 0.847,
+  "total_rules": 142,
+  "rules_passed": 120,
+  "rules_failed": 22,
+  "steps_completed": [
+    "database_setup",
+    "connection_test",
+    "discovery",
+    "profiling",
+    "classification",
+    "dq_rules_generation",
+    "dq_execution"
+  ]
+}

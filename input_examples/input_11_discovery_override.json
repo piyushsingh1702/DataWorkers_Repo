@@ -1,0 +1,10 @@
+{
+  "db_name": "loan1",
+  "snapshot_date": "2025-01-01",
+  "table_name": "loans",
+  "column_name": "interest_rate",
+  "updates": {
+    "description": "Annual interest rate in percent (APR-equivalent). Mortgage book ranges 2.0% to 18.0%; values outside this band indicate data-entry error or policy breach.",
+    "is_unique": false
+  }
+}

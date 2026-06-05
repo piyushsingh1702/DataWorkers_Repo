@@ -1,0 +1,11 @@
+{
+  "db_name": "loan1",
+  "snapshot_date": "2025-01-01",
+  "rule_id": "DQ-CUST-005",
+  "create_if_missing": false,
+  "updates": {
+    "threshold": 0.97,
+    "severity": "critical",
+    "description": "credit_score is a critical data element for underwriting and capital reserves; tightened policy null-rate threshold to <= 3% for FY26."
+  }
+}

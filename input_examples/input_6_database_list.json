@@ -1,0 +1,5 @@
+{
+  "_method": "GET",
+  "_endpoint": "/api/v1/database/list",
+  "_note": "GET endpoint takes no body or query params. This file documents the call shape."
+}

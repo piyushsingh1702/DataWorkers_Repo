@@ -1,0 +1,56 @@
+{
+  "db_name": "loan1",
+  "snapshot_date_start": "2025-01-01",
+  "snapshot_date_end": "2025-04-01",
+  "snapshots_analysed": ["2025-01-01", "2025-02-01", "2025-03-01", "2025-04-01"],
+  "snapshots_missing_scores": [],
+  "overview": [
+    {"snapshot_date": "2025-01-01", "overall_score": 0.847, "rules_passed": 120, "rules_failed": 22, "total_rules": 142},
+    {"snapshot_date": "2025-02-01", "overall_score": 0.835, "rules_passed": 118, "rules_failed": 24, "total_rules": 142},
+    {"snapshot_date": "2025-03-01", "overall_score": 0.822, "rules_passed": 116, "rules_failed": 26, "total_rules": 142},
+    {"snapshot_date": "2025-04-01", "overall_score": 0.812, "rules_passed": 115, "rules_failed": 27, "total_rules": 142}
+  ],
+  "model": "gpt-5.1",
+  "analysis": {
+    "summary": "Overall DQ on `loan1` slid from 0.847 to 0.812 (-0.035) across the Q1 window, a steady monthly decline rather than a one-off shock. Completeness in `customers` and Timeliness in `payments` are the dominant drivers; Validity and Uniqueness held firm.",
+    "overall_trend": {
+      "direction": "declining",
+      "start_score": 0.847,
+      "end_score": 0.812,
+      "delta": -0.035,
+      "narrative": "Score moved from 0.847 to 0.812, a decline beyond the +/-0.02 stable band, with each monthly snapshot worse than the last."
+    },
+    "key_findings": [
+      "Completeness fell from 0.91 to 0.86 driven mainly by rising null rates on customers.credit_score (2.8% to 4.6%) and customers.phone (1.2% to 5.1%).",
+      "Payments accumulated 38 additional Late/Missed records vs. 2025-01-01, dragging Timeliness from 0.83 to 0.78.",
+      "Validity remained stable at 0.94 - format/range integrity is holding despite churn elsewhere.",
+      "Uniqueness held at 0.95+ across all four snapshots; surrogate-key discipline is intact.",
+      "The decline is monotonic month-over-month, indicating an upstream regression rather than a single-snapshot anomaly."
+    ],
+    "risks": [
+      "If credit_score null rates continue rising, downstream credit-risk models will degrade and CCAR submissions will require manual remediation.",
+      "Late-payment growth signals genuine portfolio stress; SLA breaches and reserve top-ups are likely next quarter.",
+      "Without intervention, overall DQ projects below the 0.80 board-reporting floor by 2025-06-01."
+    ],
+    "recommendations": [
+      "Patch the digital-channel onboarding flow to enforce non-null capture for customers.credit_score and customers.phone.",
+      "Tighten the Completeness rule on customers.credit_score to <= 3% null and route breaches to the data-domain owner via the dq_admin registry.",
+      "Stand up a weekly trend run instead of monthly to catch drift before it reaches the next regulatory cut.",
+      "Open a service-level review on the ACH posting job to address the payments timeliness regression at the source."
+    ],
+    "dimension_trends": [
+      {"dimension": "Completeness", "direction": "declining", "start_score": 0.91, "end_score": 0.86, "delta": -0.05, "narrative": "Largest regression of the period; concentrated in customers."},
+      {"dimension": "Timeliness",   "direction": "declining", "start_score": 0.83, "end_score": 0.78, "delta": -0.05, "narrative": "Payments lateness rose every month."},
+      {"dimension": "Consistency",  "direction": "declining", "start_score": 0.88, "end_score": 0.85, "delta": -0.03, "narrative": "Mild slip on cross-table date invariants."},
+      {"dimension": "Validity",     "direction": "stable",    "start_score": 0.94, "end_score": 0.94, "delta": 0.00, "narrative": "Within stable band."},
+      {"dimension": "Uniqueness",   "direction": "stable",    "start_score": 0.95, "end_score": 0.95, "delta": 0.00, "narrative": "Within stable band."},
+      {"dimension": "Accuracy",     "direction": "stable",    "start_score": 0.96, "end_score": 0.95, "delta": -0.01, "narrative": "Within stable band."}
+    ],
+    "table_trends": [
+      {"table_name": "customers", "direction": "declining", "start_score": 0.83, "end_score": 0.77, "delta": -0.06, "narrative": "Null rates climbed on phone and credit_score."},
+      {"table_name": "payments",  "direction": "declining", "start_score": 0.74, "end_score": 0.66, "delta": -0.08, "narrative": "Late/Missed records grew 38%."},
+      {"table_name": "loans",     "direction": "stable",    "start_score": 0.86, "end_score": 0.85, "delta": -0.01, "narrative": "Loans table is the resilient core of the portfolio."},
+      {"table_name": "branches",  "direction": "stable",    "start_score": 0.96, "end_score": 0.96, "delta": 0.00, "narrative": "Reference data unchanged."}
+    ]
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "table_name": "loans",
+  "column_name": "interest_rate",
+  "question": "Are there any out-of-band interest rates in this snapshot, and what is the business risk?"
+}

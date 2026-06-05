@@ -1,0 +1,92 @@
+{
+  "database_name": "loan1",
+  "overall_score": 0.847,
+  "total_rules": 142,
+  "rules_passed": 120,
+  "rules_failed": 22,
+  "generated_at": "2025-01-01T10:16:42.001783+00:00",
+  "dimension_scores": [
+    {"dimension": "Accuracy",     "score": 0.96, "rules_count": 12, "rules_passed": 12, "rules_failed": 0},
+    {"dimension": "Completeness", "score": 0.91, "rules_count": 38, "rules_passed": 33, "rules_failed": 5},
+    {"dimension": "Consistency",  "score": 0.88, "rules_count": 22, "rules_passed": 19, "rules_failed": 3},
+    {"dimension": "Timeliness",   "score": 0.83, "rules_count": 9,  "rules_passed": 7,  "rules_failed": 2},
+    {"dimension": "Validity",     "score": 0.94, "rules_count": 47, "rules_passed": 41, "rules_failed": 6},
+    {"dimension": "Uniqueness",   "score": 0.95, "rules_count": 14, "rules_passed": 13, "rules_failed": 1}
+  ],
+  "table_scores": [
+    {
+      "table_name": "customers",
+      "overall_score": 0.83,
+      "rules_count": 28,
+      "dimension_scores": [
+        {"dimension": "Completeness", "score": 0.78, "rules_count": 9, "rules_passed": 7, "rules_failed": 2},
+        {"dimension": "Validity",     "score": 0.91, "rules_count": 12, "rules_passed": 11, "rules_failed": 1},
+        {"dimension": "Uniqueness",   "score": 0.93, "rules_count": 4, "rules_passed": 4, "rules_failed": 0}
+      ]
+    },
+    {
+      "table_name": "loans",
+      "overall_score": 0.86,
+      "rules_count": 31,
+      "dimension_scores": [
+        {"dimension": "Validity",     "score": 0.95, "rules_count": 14, "rules_passed": 13, "rules_failed": 1},
+        {"dimension": "Consistency",  "score": 0.85, "rules_count": 6, "rules_passed": 5, "rules_failed": 1},
+        {"dimension": "Uniqueness",   "score": 1.00, "rules_count": 3, "rules_passed": 3, "rules_failed": 0}
+      ]
+    },
+    {
+      "table_name": "payments",
+      "overall_score": 0.74,
+      "rules_count": 21,
+      "dimension_scores": [
+        {"dimension": "Timeliness",   "score": 0.81, "rules_count": 5, "rules_passed": 4, "rules_failed": 1},
+        {"dimension": "Completeness", "score": 0.73, "rules_count": 8, "rules_passed": 5, "rules_failed": 3}
+      ]
+    }
+  ],
+  "rule_results": [
+    {
+      "rule_id": "DQ-CUST-005",
+      "rule_name": "customers.credit_score completeness",
+      "dimension": "Completeness",
+      "table_name": "customers",
+      "column_name": "credit_score",
+      "total_records": 248,
+      "failed_records": 7,
+      "score": 0.972,
+      "passed": false,
+      "threshold": 0.97,
+      "severity": "critical",
+      "cde_linked": true
+    },
+    {
+      "rule_id": "DQ-LOAN-001",
+      "rule_name": "loans.interest_rate range check",
+      "dimension": "Validity",
+      "table_name": "loans",
+      "column_name": "interest_rate",
+      "total_records": 261,
+      "failed_records": 2,
+      "score": 0.992,
+      "passed": false,
+      "threshold": 0.99,
+      "severity": "high",
+      "cde_linked": true
+    },
+    {
+      "rule_id": "DQ-APP-007",
+      "rule_name": "applications.decision_date >= application_date",
+      "dimension": "Consistency",
+      "table_name": "applications",
+      "column_name": "decision_date",
+      "total_records": 401,
+      "failed_records": 0,
+      "score": 1.0,
+      "passed": true,
+      "threshold": 1.0,
+      "severity": "critical",
+      "cde_linked": true
+    }
+  ],
+  "_truncated": "139 additional rule results and 5 additional table_scores omitted in this example for brevity"
+}

@@ -1,0 +1,17 @@
+{
+  "status": "success",
+  "db_name": "loan1",
+  "snapshot_date": "2025-01-01",
+  "message": "Classified 62 columns, identified 18 CDEs",
+  "summary": {
+    "total_columns": 62,
+    "cde_count": 18,
+    "cde_percentage": 29.03,
+    "classification_summary": {
+      "Public": 6,
+      "Internal": 32,
+      "Confidential": 19,
+      "Restricted": 5
+    }
+  }
+}

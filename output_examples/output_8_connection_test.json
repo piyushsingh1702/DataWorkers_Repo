@@ -1,0 +1,9 @@
+{
+  "status": "success",
+  "db_name": "loan1",
+  "snapshot_date": "2025-01-01",
+  "message": "Connection successful: opened 'app/database/loan1.db' and verified snapshot '2025-01-01' has data in 8 tables.",
+  "tables_visible": 8,
+  "rows_in_snapshot": 1342,
+  "elapsed_ms": 18
+}

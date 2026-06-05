@@ -1,0 +1,40 @@
+{
+  "status": "success",
+  "db_name": "loan1",
+  "snapshot_date": "2025-01-01",
+  "action": "updated",
+  "message": "Rule 'DQ-CUST-005' updated.",
+  "applied_updates": {
+    "threshold": 0.97,
+    "severity": "critical",
+    "description": "credit_score is a critical data element for underwriting and capital reserves; tightened policy null-rate threshold to <= 3% for FY26."
+  },
+  "rule": {
+    "rule_id": "DQ-CUST-005",
+    "rule_name": "customers.credit_score completeness",
+    "dimension": "Completeness",
+    "table_name": "customers",
+    "column_name": "credit_score",
+    "rule_type": "business",
+    "description": "credit_score is a critical data element for underwriting and capital reserves; tightened policy null-rate threshold to <= 3% for FY26.",
+    "sql_query": "SELECT 100.0 * SUM(CASE WHEN credit_score IS NULL THEN 1 ELSE 0 END) / COUNT(*) FROM customers WHERE report_date = :snapshot_date",
+    "threshold": 0.97,
+    "severity": "critical",
+    "cde_linked": true
+  },
+  "summary": {
+    "total_rules": 142,
+    "rules_by_dimension": {
+      "Accuracy": 12,
+      "Completeness": 38,
+      "Consistency": 22,
+      "Timeliness": 9,
+      "Validity": 47,
+      "Uniqueness": 14
+    },
+    "rules_by_type": {
+      "technical": 96,
+      "business": 46
+    }
+  }
+}

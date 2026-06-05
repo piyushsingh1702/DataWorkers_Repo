@@ -1,0 +1,12 @@
+{
+  "databases": [
+    {
+      "db_name": "loan1",
+      "path": "app/database/loan1.db",
+      "description": "January 2025 mortgage book snapshot for loan1",
+      "snapshot_count": 4,
+      "first_snapshot": "2025-01-01",
+      "last_snapshot": "2025-04-01"
+    }
+  ]
+}

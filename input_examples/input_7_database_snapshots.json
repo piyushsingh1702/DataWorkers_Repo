@@ -1,0 +1,7 @@
+{
+  "_method": "GET",
+  "_endpoint": "/api/v1/database/snapshots",
+  "_query": {
+    "db_name": "loan1"
+  }
+}
