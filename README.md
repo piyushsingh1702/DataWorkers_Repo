@@ -225,6 +225,8 @@ Open Swagger UI:
    ```
    Re-call with a new `snapshot_date` to append; same `(db, snapshot)`
    replaces only that snapshot's rows + clears its artifacts.
+   > **Note:** Refresh the UI after loading a new snapshot so the new
+   > `snapshot_date` shows up in the dropdown parameters of the other endpoints.
 
 2. **Run the full pipeline** for that snapshot:
    ```http

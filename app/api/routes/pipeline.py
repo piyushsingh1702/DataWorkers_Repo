@@ -25,8 +25,8 @@ def run_pipeline(
     db_name: str | None = Query(default=None),
     snapshot_date: str = Query(..., description="Snapshot date (YYYY-MM-DD)."),
     setup_database: bool = Query(
-        default=True,
-        description="If true (default), recreate the sample DB with all default snapshots before running.",
+        default=False,
+        description="If true, recreate the sample DB with all default snapshots before running. Defaults to false.",
     ),
     extras: PipelineExtras | None = None,
 ):
