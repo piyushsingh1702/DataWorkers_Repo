@@ -17,3 +17,9 @@ logs/*.log
 logs/**/*.log
 .venv/
 venv/
+
+# Pitch deck artifacts (locally generated; not tracked in the repo)
+PITCH_DECK.md
+PITCH_DECK.pptx
+scripts/build_pitch_deck_pptx.py
+scripts/
